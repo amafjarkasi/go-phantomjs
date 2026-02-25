@@ -206,6 +206,53 @@ func (b *PageRequestBuilder) WithContent(html string) *PageRequestBuilder {
 	return b
 }
 
+// WithAuthentication sets HTTP Basic Auth credentials.
+func (b *PageRequestBuilder) WithAuthentication(username, password string) *PageRequestBuilder {
+	b.req.RequestSettings.Authentication = &Authentication{
+		UserName: username,
+		Password: password,
+	}
+	return b
+}
+
+// WithCookies sets request cookies.
+func (b *PageRequestBuilder) WithCookies(cookies []Cookie) *PageRequestBuilder {
+	b.req.RequestSettings.Cookies = cookies
+	return b
+}
+
+// WithSuppressJson suppresses fields from the OutputAsJson response envelope.
+// Useful for reducing payload size when only specific fields are needed.
+// Common values: "pageResponses", "originalRequest", "billing".
+func (b *PageRequestBuilder) WithSuppressJson(fields []string) *PageRequestBuilder {
+	b.req.SuppressJson = fields
+	return b
+}
+
+// WithPdfOptions sets PDF rendering options in RenderSettings.
+func (b *PageRequestBuilder) WithPdfOptions(opts PdfOptions) *PageRequestBuilder {
+	b.req.RenderSettings.PdfOptions = &opts
+	return b
+}
+
+// WithQuality sets the JPEG/PNG render quality (0–100) in RenderSettings.
+func (b *PageRequestBuilder) WithQuality(q int) *PageRequestBuilder {
+	b.req.RenderSettings.Quality = q
+	return b
+}
+
+// WithUrlSettings sets POST data, headers, and operation type for the request URL.
+// Use this to send POST data to a target URL natively.
+//
+//	.WithUrlSettings(phantomjscloud.UrlSettings{
+//	    Operation: "POST",
+//	    Data:      `{"key":"value"}`,
+//	})
+func (b *PageRequestBuilder) WithUrlSettings(us UrlSettings) *PageRequestBuilder {
+	b.req.UrlSettings = &us
+	return b
+}
+
 // Build returns the fully configured PageRequest. Safe to call multiple times;
 // each call returns a value copy of the current state.
 func (b *PageRequestBuilder) Build() *PageRequest {

@@ -2,6 +2,7 @@ package phantomjscloud
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -9,11 +10,28 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const (
-	baseEndpointUrl = "https://phantomjscloud.com/api/browser/v2/"
+	baseEndpointUrl    = "https://phantomjscloud.com/api/browser/v2/"
+	defaultHTTPTimeout = 120 * time.Second
 )
+
+// ClientOption is a functional option for configuring a Client.
+type ClientOption func(*Client)
+
+// WithHTTPClient replaces the default HTTP client.
+// Use this to set a custom transport, proxy, or TLS config.
+func WithHTTPClient(hc *http.Client) ClientOption {
+	return func(c *Client) { c.httpClient = hc }
+}
+
+// WithTimeout sets the HTTP timeout for all requests.
+// Default is 120s (PhantomJsCloud renders can be slow on complex pages).
+func WithTimeout(d time.Duration) ClientOption {
+	return func(c *Client) { c.httpClient.Timeout = d }
+}
 
 // Client is a PhantomJsCloud API client.
 type Client struct {
@@ -23,14 +41,23 @@ type Client struct {
 
 // NewClient creates a new Client using the provided API key.
 // Passing an empty string will use the demo key "a-demo-key-with-low-quota-per-ip-address" (not recommended for production).
-func NewClient(apiKey string) *Client {
+// Use functional options to customise the underlying HTTP client:
+//
+//	client := phantomjscloud.NewClient("YOUR_KEY",
+//	    phantomjscloud.WithTimeout(60*time.Second),
+//	)
+func NewClient(apiKey string, opts ...ClientOption) *Client {
 	if apiKey == "" {
 		apiKey = "a-demo-key-with-low-quota-per-ip-address"
 	}
-	return &Client{
+	c := &Client{
 		apiKey:     apiKey,
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // UserResponseWithMeta wraps the UserResponse API payload along with the HTTP Response metadata headers.
@@ -41,14 +68,24 @@ type UserResponseWithMeta struct {
 
 // DoPage is a convenience method that wraps a single PageRequest inside a UserRequest.
 func (c *Client) DoPage(req *PageRequest) (*UserResponseWithMeta, error) {
+	return c.DoPageContext(context.Background(), req)
+}
+
+// DoPageContext is like DoPage but honours the provided context for cancellation and deadlines.
+func (c *Client) DoPageContext(ctx context.Context, req *PageRequest) (*UserResponseWithMeta, error) {
 	uReq := &UserRequest{
 		Pages: []PageRequest{*req},
 	}
-	return c.Do(uReq)
+	return c.DoContext(ctx, uReq)
 }
 
 // Do serializes a UserRequest, performs the HTTP POST to PhantomJsCloud, and parses the response.
 func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
+	return c.DoContext(context.Background(), req)
+}
+
+// DoContext is like Do but honours the provided context for cancellation and deadlines.
+func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
 	endpoint := baseEndpointUrl + c.apiKey + "/"
 
 	payload, err := json.Marshal(req)
@@ -56,7 +93,7 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(payload))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
@@ -83,7 +120,6 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 		return nil, fmt.Errorf("failed to decode response payload: %w", err)
 	}
 
-	// Build the response with metadata
 	result := &UserResponseWithMeta{
 		UserResponse: userResp,
 		Metadata:     parseMetadata(httpResp.Header),

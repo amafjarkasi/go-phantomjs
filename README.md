@@ -19,6 +19,8 @@
 - **URL Blocklists** (`ext/blocklist`): Pre-built `ResourceModifier` slices blocking 20 ad networks, 28 analytics beacons, web fonts, and media assets — composable via `Lightweight()` and `Full()` presets. Cuts page request volume by 40–60% on ad-heavy targets, directly reducing API billing cost.
 - **Viewport Presets** (`ext/viewport`): Named presets for every common screen — desktop HD/FHD/QHD/4K, laptop, mobile portrait/landscape, tablet, and OG image thumbnails (640×480, 1200×630). Apply to `RenderSettings` via `AsRenderSettings()` or live page emulation via `ApplyViewport()` on the builder.
 - **Race-Free Navigation**: `ClickAndWaitForNavigation()` atomically pairs a click with a page-load wait, eliminating the race condition that `Click()` + `WaitForNavigation()` are susceptible to on fast servers.
+- **Context-Aware HTTP**: Every `Do`/`DoPage` call has a `DoContext`/`DoPageContext` counterpart for cancellation and deadline propagation. Pair with `context.WithTimeout` for reliable production use.
+- **Functional Client Options**: Configure the client with `WithTimeout(d)` or `WithHTTPClient(hc)` — bring your own transport, proxy, or TLS config without subclassing.
 - **Response Metadata**: Automatically parses `pjsc-*` response headers into a structured `ResponseMetadata` object — billing credit cost, content status code, and done-when event — attached to every response.
 - **Proxy Constants**: Named constants for every PhantomJsCloud proxy location (`ProxyAnonUS`, `ProxyGeoUK`, `ProxyGeoDE`, etc.) so you're never hardcoding location strings.
 - **CI-Tested**: GitHub Actions runs `go vet`, `go test -race`, `go build`, and `golangci-lint` on every push. All packages have dedicated unit tests including race-detector coverage.
@@ -30,6 +32,37 @@ go get github.com/amafjarkasi/go-phantomjs
 ```
 
 ## Quick Start
+
+### Creating a Client
+
+```go
+// Minimal — uses demo key (low quota)
+client := phantomjscloud.NewClient("")
+
+// Production — with your API key and a custom timeout
+client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"),
+    phantomjscloud.WithTimeout(60*time.Second),
+)
+
+// Advanced — bring your own http.Client (custom proxy, TLS, transport)
+client := phantomjscloud.NewClient("YOUR_KEY",
+    phantomjscloud.WithHTTPClient(&http.Client{
+        Timeout:   90 * time.Second,
+        Transport: myCustomTransport,
+    }),
+)
+```
+
+### Context Support
+
+Every `Do`/`DoPage` call has a `Context` variant for cancellation and deadlines:
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+resp, err := client.DoPageContext(ctx, req)
+```
 
 ### Convenience Fetchers (PDFs, Images, Scripts)
 

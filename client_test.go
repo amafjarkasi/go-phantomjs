@@ -1,12 +1,14 @@
 package phantomjscloud
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 )
@@ -296,5 +298,102 @@ func TestApplyViewport(t *testing.T) {
 	deskScript := NewOverseerScriptBuilder().ApplyViewport(desktop).Build()
 	if !strings.Contains(deskScript, "isMobile:false") {
 		t.Errorf("ApplyViewport FHD: expected isMobile:false in script")
+	}
+}
+
+// ── Client options tests ─────────────────────────────────────────────────────
+
+func TestNewClient_DefaultTimeout(t *testing.T) {
+	c := NewClient("test-key")
+	if c.httpClient.Timeout != defaultHTTPTimeout {
+		t.Errorf("expected default timeout %v, got %v", defaultHTTPTimeout, c.httpClient.Timeout)
+	}
+}
+
+func TestNewClient_WithTimeout(t *testing.T) {
+	c := NewClient("test-key", WithTimeout(30*time.Second))
+	if c.httpClient.Timeout != 30*time.Second {
+		t.Errorf("expected 30s timeout, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestNewClient_WithHTTPClient(t *testing.T) {
+	custom := &http.Client{Timeout: 5 * time.Second}
+	c := NewClient("test-key", WithHTTPClient(custom))
+	if c.httpClient != custom {
+		t.Error("expected custom http client to be set")
+	}
+}
+
+func TestDoContext_Cancelled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	c := NewClient("test-key", WithHTTPClient(server.Client()))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // already cancelled
+
+	_, err := c.DoContext(ctx, &UserRequest{Pages: []PageRequest{{URL: server.URL}}})
+	if err == nil {
+		t.Error("expected error from cancelled context, got nil")
+	}
+}
+
+// ── PageRequestBuilder additional method tests ────────────────────────────────
+
+func TestPageRequestBuilder_WithAuthentication(t *testing.T) {
+	req := NewPageRequestBuilder("https://example.com").
+		WithAuthentication("user", "pass").
+		Build()
+
+	if req.RequestSettings.Authentication == nil {
+		t.Fatal("expected non-nil Authentication")
+	}
+	if req.RequestSettings.Authentication.UserName != "user" || req.RequestSettings.Authentication.Password != "pass" {
+		t.Errorf("unexpected auth: %+v", req.RequestSettings.Authentication)
+	}
+}
+
+func TestPageRequestBuilder_WithCookies(t *testing.T) {
+	cookies := []Cookie{{Name: "session", Value: "abc", Domain: "example.com"}}
+	req := NewPageRequestBuilder("https://example.com").WithCookies(cookies).Build()
+
+	if len(req.RequestSettings.Cookies) != 1 || req.RequestSettings.Cookies[0].Name != "session" {
+		t.Errorf("unexpected cookies: %+v", req.RequestSettings.Cookies)
+	}
+}
+
+func TestPageRequestBuilder_WithSuppressJson(t *testing.T) {
+	req := NewPageRequestBuilder("https://example.com").
+		WithSuppressJson([]string{"pageResponses", "originalRequest"}).Build()
+
+	if len(req.SuppressJson) != 2 {
+		t.Errorf("expected 2 suppress fields, got %d", len(req.SuppressJson))
+	}
+}
+
+func TestPageRequestBuilder_WithPdfOptions(t *testing.T) {
+	req := NewPageRequestBuilder("https://example.com").
+		WithRenderType("pdf").
+		WithPdfOptions(PdfOptions{Landscape: true, PrintBackground: true}).Build()
+
+	if req.RenderSettings.PdfOptions == nil || !req.RenderSettings.PdfOptions.Landscape {
+		t.Error("expected PdfOptions.Landscape=true")
+	}
+}
+
+func TestPageRequestBuilder_WithQuality(t *testing.T) {
+	req := NewPageRequestBuilder("https://example.com").WithRenderType("jpeg").WithQuality(85).Build()
+	if req.RenderSettings.Quality != 85 {
+		t.Errorf("expected quality 85, got %d", req.RenderSettings.Quality)
+	}
+}
+
+func TestPageRequestBuilder_WithUrlSettings(t *testing.T) {
+	req := NewPageRequestBuilder("https://api.example.com/endpoint").
+		WithUrlSettings(UrlSettings{Operation: "POST", Data: `{"key":"value"}`}).Build()
+
+	if req.UrlSettings == nil || req.UrlSettings.Operation != "POST" {
+		t.Errorf("expected UrlSettings.Operation=POST, got: %+v", req.UrlSettings)
 	}
 }
