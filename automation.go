@@ -56,6 +56,10 @@ type OverseerScriptBuilder struct {
 	script string
 }
 
+// NewOverseerScriptBuilder returns a builder that constructs a PhantomJsCloud
+// overseerScript step by step. Call Build() to get the final script string,
+// then assign it to PageRequest.OverseerScript or pass the builder directly
+// to FetchWithAutomation or WithOverseerScriptBuilder.
 func NewOverseerScriptBuilder() *OverseerScriptBuilder {
 	return &OverseerScriptBuilder{
 		script: "",
@@ -80,9 +84,22 @@ func (b *OverseerScriptBuilder) WaitForNavigation() *OverseerScriptBuilder {
 	return b
 }
 
-// WaitForNavigationEvent waits for a specific page load event (e.g., 'domcontentloaded', 'networkidle0').
+// WaitForNavigationEvent waits for the page to reach a specific load event.
+// Common values: "load", "domcontentloaded", "networkidle0", "networkidle2".
 func (b *OverseerScriptBuilder) WaitForNavigationEvent(event string) *OverseerScriptBuilder {
-	b.script += "await page.waitForNavigation('" + event + "');\n"
+	b.script += "await page.waitForNavigation({waitUntil: '" + event + "'});\n"
+	return b
+}
+
+// WaitForNetworkIdle waits until there are no more than idleConnections open
+// network connections for at least idleMs milliseconds.
+// Pass idleConnections=0 for networkidle0 (fully idle), or 2 for networkidle2.
+func (b *OverseerScriptBuilder) WaitForNetworkIdle(idleConnections, idleMs int) *OverseerScriptBuilder {
+	waitUntil := "networkidle0"
+	if idleConnections > 0 {
+		waitUntil = "networkidle2"
+	}
+	b.script += "await page.waitForNavigation({waitUntil: '" + waitUntil + "', timeout: " + strconv.Itoa(idleMs*2+5000) + "});\n"
 	return b
 }
 
@@ -118,9 +135,17 @@ func (b *OverseerScriptBuilder) Raw(code string) *OverseerScriptBuilder {
 	return b
 }
 
-// Goto navigates to a URL.
+// Goto navigates to a URL and waits for the default load event.
 func (b *OverseerScriptBuilder) Goto(url string) *OverseerScriptBuilder {
 	b.script += "await page.goto('" + url + "');\n"
+	return b
+}
+
+// GotoWithWaitUntil navigates to a URL and waits for a specific load event.
+// Common values: "load", "domcontentloaded", "networkidle0", "networkidle2".
+// Prefer this over Goto + WaitForNavigationEvent for SPAs that fire no traditional load events.
+func (b *OverseerScriptBuilder) GotoWithWaitUntil(url, waitUntil string) *OverseerScriptBuilder {
+	b.script += "await page.goto('" + url + "', {waitUntil: '" + waitUntil + "'});\n"
 	return b
 }
 
