@@ -6,59 +6,95 @@ import (
 	"os"
 
 	phantomjscloud "github.com/jbdt/go-phantomjs"
+	"github.com/jbdt/go-phantomjs/ext/blocklist"
+	"github.com/jbdt/go-phantomjs/ext/useragents"
+	"github.com/jbdt/go-phantomjs/ext/viewport"
 )
 
 func main() {
-	// Initialize a PhantomJsCloud Client
-	// We read the API key from the environment variable PHANTOMJSCLOUD_API_KEY.
-	// Passing an empty string uses the free demo key (which has severe rate limits).
 	apiKey := os.Getenv("PHANTOMJSCLOUD_API_KEY")
 	client := phantomjscloud.NewClient(apiKey)
 
-	// Create a simple script using the OverseerScriptBuilder
-	script := phantomjscloud.NewOverseerScriptBuilder().
-		WaitForNavigation().
-		// Adding an external script, e.g., a hilitor
-		AddScriptTag("http://phantomjscloud.com/examples/scripts/hilitor.js").
-		// And evaluating a function in the page context
-		Evaluate("() => { let _hilitor = new Hilitor(); _hilitor.apply('Example'); }").
+	// ── Example A: Full Stealth Scrape ───────────────────────────────────────
+	// Chrome/Windows fingerprint + stealth evasions + lightweight blocklist.
+	// Use this as the starting point for any site with bot detection.
+	fmt.Println("=== Example A: Full stealth scrape ===")
+
+	profile := useragents.ChromeWindowsProfile()
+	stealthScript := phantomjscloud.NewOverseerScriptBuilder().
+		UseProfile(profile).                  // Set realistic UA + headers
+		ApplyStealth().                       // Inject 14 fingerprint evasions
+		ApplyViewport(viewport.FHD.Viewport). // 1920x1080 desktop
+		Goto("https://bot.sannysoft.com").
+		WaitForDelay(1500).
+		RenderScreenshot(true).
 		Build()
 
-	fmt.Println("Generated Overseer Script:\n", script)
-
-	// Build the PageRequest
-	pageReq := &phantomjscloud.PageRequest{
-		URL:            "https://example.com",
-		RenderType:     "html", // Or "png", "pdf", "automation"
-		OutputAsJson:   true,
-		OverseerScript: script,
+	stealthReq := &phantomjscloud.PageRequest{
+		URL:            "about:blank", // Goto() in the script overrides this
+		RenderType:     "jpeg",
+		OverseerScript: stealthScript,
 		RequestSettings: phantomjscloud.RequestSettings{
-			WaitInterval: 0,
-			DoneWhen: []phantomjscloud.DoneWhen{
-				{Event: "domReady"},
-			},
-			ResourceModifier: []phantomjscloud.ResourceModifier{
-				{
-					Type:          "image",
-					IsBlacklisted: true,
-				},
-			},
+			UserAgent:        profile.UserAgent,
+			CustomHeaders:    profile.Headers,
+			ResourceModifier: blocklist.Lightweight(), // block ads + trackers + fonts
 		},
 	}
-
-	fmt.Println("Sending request to PhantomJsCloud...")
-	resp, err := client.DoPage(pageReq)
+	resp, err := client.DoPage(stealthReq)
 	if err != nil {
-		log.Fatalf("Request failed: %v", err)
+		log.Printf("Example A error: %v\n", err)
+	} else {
+		fmt.Printf("Example A: status=%s  cost=%.4f credits\n",
+			resp.Status, resp.Metadata.BillingCreditCost)
 	}
 
-	fmt.Printf("Received Response!\n")
-	fmt.Printf("Status Code: %d\n", resp.Metadata.ContentStatusCode)
-	fmt.Printf("Billing Credit Cost: %f\n", resp.Metadata.BillingCreditCost)
+	// ── Example B: Auto-Login ────────────────────────────────────────────────
+	// Type credentials, submit, and wait for the backend redirect.
+	// ClickAndWaitForNavigation avoids the race condition between click and load.
+	fmt.Println("\n=== Example B: Auto-login (demo — not a real site) ===")
 
-	if len(resp.PageResponses) > 0 {
-		fmt.Printf("Content length: %d\n", len(resp.PageResponses[0].Content))
+	loginScript := phantomjscloud.NewOverseerScriptBuilder().
+		WaitForSelector("input#username").
+		ClearInput("input#username").
+		Type("input#username", "user@example.com", 60).
+		ClearInput("input#password").
+		Type("input#password", "s3cr3t", 60).
+		ClickAndWaitForNavigation("button[type=submit]").
+		WaitForSelector(".dashboard-header").
+		RenderContent().
+		Done().
+		Build()
+
+	fmt.Println("Login script:\n", loginScript)
+
+	// Attach it to a real request like this:
+	_ = &phantomjscloud.PageRequest{
+		URL:            "https://example.com/login",
+		RenderType:     "plainText",
+		OverseerScript: loginScript,
+	}
+
+	// ── Example C: Open Graph Thumbnail (1200×630) ───────────────────────────
+	// Generate a social share image using the Thumbnail1200 viewport preset.
+	fmt.Println("\n=== Example C: Open Graph thumbnail (1200x630) ===")
+
+	thumbReq := &phantomjscloud.PageRequest{
+		URL:            "https://go.dev",
+		RenderType:     "jpeg",
+		RenderSettings: viewport.Thumbnail1200.AsRenderSettings(),
+		RequestSettings: phantomjscloud.RequestSettings{
+			ResourceModifier: blocklist.Fonts(), // block fonts for speed
+		},
+	}
+	thumbBytes, err := client.FetchScreenshot(thumbReq.URL, "jpeg", &thumbReq.RenderSettings)
+	if err != nil {
+		log.Printf("Example C error: %v\n", err)
 	} else {
-		fmt.Println("No page responses received.")
+		path := "thumb.jpg"
+		if err := os.WriteFile(path, thumbBytes, 0o644); err != nil {
+			log.Printf("Example C write error: %v\n", err)
+		} else {
+			fmt.Printf("Example C: saved %d bytes → %s\n", len(thumbBytes), path)
+		}
 	}
 }

@@ -1,0 +1,26 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - godot       # comments end with a period
+    - misspell
+    - unconvert
+    - unused
+
+linters-settings:
+  errcheck:
+    # Ignore Write calls in test HTTP handlers — these are best-effort.
+    exclude-functions:
+      - (*net/http.ResponseWriter).Write
+      - (net/http.ResponseWriter).Write
+
+issues:
+  exclude-rules:
+    # Ignore errcheck in test files for http ResponseWriter.Write
+    - path: "_test\\.go"
+      linters: [errcheck]
+      text: "Error return value of `.*Write` is not checked"

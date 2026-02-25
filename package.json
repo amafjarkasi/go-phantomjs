@@ -1,0 +1,11 @@
+{
+  "name": "go-phantomjs-codegen",
+  "description": "Code-generation utilities for go-phantomjs (not a published npm package)",
+  "private": true,
+  "scripts": {
+    "generate": "node scripts/gen_stealth.js"
+  },
+  "dependencies": {
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}

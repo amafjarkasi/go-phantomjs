@@ -1,7 +1,12 @@
 package phantomjscloud
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
+
+	"github.com/jbdt/go-phantomjs/ext/stealth"
+	"github.com/jbdt/go-phantomjs/ext/useragents"
 )
 
 // Proxy Builtin Locations (to be used with ProxyBuiltin.Location)
@@ -89,7 +94,15 @@ func (b *OverseerScriptBuilder) WaitForSelector(selector string) *OverseerScript
 
 // Click simulates a mouse click on an element.
 func (b *OverseerScriptBuilder) Click(selector string) *OverseerScriptBuilder {
-	b.script += "page.click('" + selector + "');\n"
+	b.script += "await page.click('" + selector + "');\n"
+	return b
+}
+
+// ClickAndWaitForNavigation clicks an element and waits for the resulting page
+// navigation to complete before continuing. This prevents race conditions when
+// clicking links or form submit buttons that trigger a full navigation.
+func (b *OverseerScriptBuilder) ClickAndWaitForNavigation(selector string) *OverseerScriptBuilder {
+	b.script += "await Promise.all([\n  page.waitForNavigation(),\n  page.click('" + selector + "')\n]);\n"
 	return b
 }
 
@@ -271,6 +284,51 @@ func (b *OverseerScriptBuilder) MouseClickPosition(x, y int) *OverseerScriptBuil
 // WaitForXPath explicitly waits for a specific XPath block to render into the DOM.
 func (b *OverseerScriptBuilder) WaitForXPath(xpath string) *OverseerScriptBuilder {
 	b.script += "await page.waitForXPath(\"" + xpath + "\");\n"
+	return b
+}
+
+// ApplyStealth injects a comprehensive suite of browser fingerprinting evasions
+// derived from puppeteer-extra-plugin-stealth. Spoofs navigator, WebGL, chrome,
+// iframe, media codec, and many other APIs that bot-detection scripts probe.
+//
+// Call this early in your script, ideally before Goto, so the evasions are
+// registered before any page content is loaded.
+//
+// The JS payload lives in ext/stealth/evasions.js and can be regenerated with:
+//
+//	node scripts/gen_stealth.js
+func (b *OverseerScriptBuilder) ApplyStealth() *OverseerScriptBuilder {
+	b.script += "await page.evaluateOnNewDocument(" + stealth.JS + ");\n"
+	return b
+}
+
+// UseProfile sets both the user agent string and the accompanying request headers
+// (Accept, Accept-Language, Sec-CH-UA, Sec-Fetch-* etc.) in a single call.
+// This is the recommended way to spoof a specific browser fingerprint because
+// mismatched UA/header combinations are a common bot signal.
+//
+// Use the profile constructors in ext/useragents:
+//
+//	builder.UseProfile(useragents.ChromeWindowsProfile())
+func (b *OverseerScriptBuilder) UseProfile(p useragents.Profile) *OverseerScriptBuilder {
+	b.script += fmt.Sprintf("await page.setUserAgent(%q);\n", p.UserAgent)
+	if len(p.Headers) > 0 {
+		raw, _ := json.Marshal(p.Headers)
+		b.script += "await page.setExtraHTTPHeaders(" + string(raw) + ");\n"
+	}
+	return b
+}
+
+// ApplyViewport applies a fully configured Viewport struct to the page — supporting
+// DeviceScaleFactor, IsMobile, HasTouch, and IsLandscape flags that SetViewport(w,h)
+// doesn't expose. Use a named preset from ext/viewport by passing its Viewport field:
+//
+//	builder.ApplyViewport(viewport.MobilePortrait.Viewport)
+func (b *OverseerScriptBuilder) ApplyViewport(v Viewport) *OverseerScriptBuilder {
+	b.script += fmt.Sprintf(
+		"await page.setViewport({width:%d,height:%d,deviceScaleFactor:%g,isMobile:%t,hasTouch:%t,isLandscape:%t});\n",
+		v.Width, v.Height, v.DeviceScaleFactor, v.IsMobile, v.HasTouch, v.IsLandscape,
+	)
 	return b
 }
 
