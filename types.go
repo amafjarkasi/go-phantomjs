@@ -38,6 +38,7 @@ type Scripts struct {
 // RequestSettings represents the IRequestSettings interface
 type RequestSettings struct {
 	WaitInterval         int                `json:"waitInterval,omitempty"`
+	IoWait               int                `json:"ioWait,omitempty"`
 	MaxWait              int                `json:"maxWait,omitempty"`
 	ResourceWait         int                `json:"resourceWait,omitempty"`
 	ResourceTimeout      int                `json:"resourceTimeout,omitempty"`
@@ -56,6 +57,8 @@ type RequestSettings struct {
 	DeleteCookies        []Cookie           `json:"deleteCookies,omitempty"`
 	Authentication       *Authentication    `json:"authentication,omitempty"`
 	CustomHeaders        map[string]string  `json:"customHeaders,omitempty"`
+	EmulateDevice        string             `json:"emulateDevice,omitempty"`
+	StopOnError          bool               `json:"stopOnError,omitempty"`
 }
 
 type Authentication struct {
@@ -153,9 +156,13 @@ type Margin struct {
 
 // UserResponse represents the root response object
 type UserResponse struct {
-	PageResponses []PageResponse `json:"pageResponses"`
-	Billing       Billing        `json:"billing"`
-	Status        string         `json:"status"`
+	PageResponses   []PageResponse         `json:"pageResponses"`
+	Billing         Billing                `json:"billing"`
+	Status          string                 `json:"status"`
+	StatusMessage   string                 `json:"statusMessage,omitempty"`
+	QueryJson       interface{}            `json:"queryJson,omitempty"`
+	OriginalRequest interface{}            `json:"originalRequest,omitempty"`
+	Meta            map[string]interface{} `json:"meta,omitempty"`
 }
 
 type Billing struct {
@@ -165,15 +172,22 @@ type Billing struct {
 
 // PageResponse represents the response object for each requested page
 type PageResponse struct {
-	Content    string                 `json:"content"`
-	Metrics    Metrics                `json:"metrics"`
-	Events     map[string][]Event     `json:"events"`
-	StatusCode int                    `json:"statusCode"`
-	StatusText string                 `json:"statusText"`
-	Headers    map[string]string      `json:"headers"`
-	Meta       map[string]interface{} `json:"meta"`
-	DoneWhen   []DoneWhen             `json:"doneWhen,omitempty"`
-	FrameData  *FrameData             `json:"frameData,omitempty"`
+	Content          string                 `json:"content"`
+	Metrics          Metrics                `json:"metrics"`
+	Events           map[string][]Event     `json:"events"`
+	StatusCode       int                    `json:"statusCode"`
+	StatusText       string                 `json:"statusText"`
+	Headers          map[string]string      `json:"headers"`
+	Meta             map[string]interface{} `json:"meta"`
+	DoneWhen         []DoneWhen             `json:"doneWhen,omitempty"`
+	FrameData        *FrameData             `json:"frameData,omitempty"`
+	Cookies          []Cookie               `json:"cookies,omitempty"`
+	Errors           []string               `json:"errors,omitempty"`
+	ContentErrors    []string               `json:"contentErrors,omitempty"`
+	AutomationResult interface{}            `json:"automationResult,omitempty"`
+	ScriptOutput     map[string]interface{} `json:"scriptOutput,omitempty"`
+	EventPhase       string                 `json:"eventPhase,omitempty"`
+	Resources        []interface{}          `json:"resources,omitempty"`
 }
 
 type Metrics struct {
