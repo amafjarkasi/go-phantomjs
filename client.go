@@ -1,7 +1,6 @@
 package phantomjscloud
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -88,13 +87,18 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
 	endpoint := baseEndpointUrl + c.apiKey + "/"
 
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
+	// Use io.Pipe to stream the request body instead of buffering it all in memory.
+	pr, pw := io.Pipe()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(payload))
+	// Encode JSON in a goroutine
+	go func() {
+		err := json.NewEncoder(pw).Encode(req)
+		pw.CloseWithError(err)
+	}()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
 	if err != nil {
+		pr.CloseWithError(err)
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 
@@ -102,6 +106,7 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		pr.CloseWithError(err)
 		return nil, fmt.Errorf("http request failed: %w", err)
 	}
 	defer httpResp.Body.Close()
