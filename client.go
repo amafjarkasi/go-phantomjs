@@ -175,6 +175,42 @@ func (c *Client) FetchScreenshot(url string, renderType string, renderSettings *
 	return decoded, nil
 }
 
+// RenderRawHTML allows you to upload raw dynamic string HTML and render it natively through PhantomJS
+// as if it were loaded from an external URL. Ideal for generating reports or templated emails.
+func (c *Client) RenderRawHTML(html string, renderType string, renderSettings *RenderSettings) ([]byte, error) {
+	if renderType != "png" && renderType != "jpeg" && renderType != "pdf" {
+		renderType = "png"
+	}
+
+	req := &PageRequest{
+		// PhantomJS Cloud expects either a URL or raw Content.
+		// "http://localhost/blank" triggers the render engine directly on the supplied content.
+		URL:        "http://localhost/blank",
+		Content:    html,
+		RenderType: renderType,
+	}
+
+	if renderSettings != nil {
+		req.RenderSettings = *renderSettings
+	}
+
+	res, err := c.DoPage(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return nil, errors.New("no page response returned")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return decoded, nil
+}
+
 // FetchWithAutomation executes a built overseasScript and automatically extracts the underlying arbitrary automationResult payload.
 func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder) (interface{}, error) {
 	req := &PageRequest{

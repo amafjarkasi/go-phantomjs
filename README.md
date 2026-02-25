@@ -192,20 +192,73 @@ Use the `EmulateMedia` parameter to generate a PDF exactly as it would look when
  }
 ```
 
-#### Intercept and Modify Requests (Change URL)
+#### Intercept and Modify Requests (Change URL & Blacklist)
 
-You can use the `ResourceModifier` to change domains on the fly. Here we route a domain to another domain while keeping the path the same.
+You can use the `ResourceModifier` to change domains on the fly, or blacklist certain requests completely to save bandwidth (like CSS files).
 
 ```go
  req := &phantomjscloud.PageRequest{
-  URL:        "https://www.highcharts.com/demo/pie-donut",
+  URL:        "https://www.highcharts.com",
   RenderType: "jpg",
   RequestSettings: phantomjscloud.RequestSettings{
+   ClearCache: true, // Forces re-requesting css to be caught by the blacklist
    ResourceModifier: []phantomjscloud.ResourceModifier{
     {
      Regex:     ".*highcharts.com.*",
      ChangeUrl: "$$protocol:$$port//en.wikipedia.org/wiki$$path",
     },
+    {
+     Regex:         ".*css.*",
+     IsBlacklisted: true,
+    },
+   },
+  },
+ }
+```
+
+#### Render Thumbnails and Zooming
+
+Combine `Viewport`, `ClipRectangle`, and `ZoomFactor` to capture perfect thumbnails.
+
+```go
+ req := &phantomjscloud.PageRequest{
+  URL:        "https://cnn.com",
+  RenderType: "jpeg",
+  RenderSettings: phantomjscloud.RenderSettings{
+   ZoomFactor: 0.45,
+   Viewport:      &phantomjscloud.Viewport{Width: 640, Height: 500},
+   ClipRectangle: &phantomjscloud.ClipRectangle{Width: 640, Height: 500},
+  },
+ }
+```
+
+#### Uploading POST Data and JSONP
+
+To submit POST data to a target URL natively, use `UrlSettings`:
+
+```go
+ req := &phantomjscloud.PageRequest{
+  URL: "https://example.com/api",
+  UrlSettings: &phantomjscloud.UrlSettings{
+   Operation: "POST",
+   Data:      `{"my_key":"my_value"}`,
+  },
+ }
+```
+
+#### HTTP Basic Auth & Reduced JSON Verbosity
+
+Using `OutputAsJson: true` will return a massive payload. You can suppress fields using `SuppressJson`. Also, bypass HTTP Basic Auth natively using `Authentication`.
+
+```go
+ req := &phantomjscloud.PageRequest{
+  URL:          "http://httpbin.org/basic-auth/user/pass",
+  OutputAsJson: true,
+  SuppressJson: []string{"pageResponses", "originalRequest"},
+  RequestSettings: phantomjscloud.RequestSettings{
+   Authentication: &phantomjscloud.Authentication{
+    UserName: "user",
+    Password: "pass",
    },
   },
  }
