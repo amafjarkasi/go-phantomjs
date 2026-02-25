@@ -106,17 +106,16 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 	}
 	defer httpResp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
 	if httpResp.StatusCode >= 400 && httpResp.StatusCode < 600 {
+		bodyBytes, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
+		}
 		return nil, fmt.Errorf("phantomjscloud returned HTTP Status %d: %s", httpResp.StatusCode, string(bodyBytes))
 	}
 
 	var userResp UserResponse
-	if err := json.Unmarshal(bodyBytes, &userResp); err != nil {
+	if err := json.NewDecoder(httpResp.Body).Decode(&userResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response payload: %w", err)
 	}
 
