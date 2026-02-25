@@ -15,6 +15,7 @@
 'use strict';
 
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
@@ -24,18 +25,14 @@ const OUT_DIR = path.join(ROOT, 'ext', 'stealth');
 const OUT_JS = path.join(OUT_DIR, 'evasions.js');
 const OUT_GO = path.join(OUT_DIR, 'stealth.go');
 
-if (!fs.existsSync(EVASION_DIR)) {
-    console.error('ERROR: puppeteer-extra-plugin-stealth not found.');
-    console.error('Run:   npm install puppeteer-extra-plugin-stealth');
-    process.exit(1);
+async function exists(path) {
+    try {
+        await fsp.access(path);
+        return true;
+    } catch {
+        return false;
+    }
 }
-
-fs.mkdirSync(OUT_DIR, { recursive: true });
-
-// ── 1. Utils block ──────────────────────────────────────────────────────────
-let utilsSrc = fs.readFileSync(UTILS_INDEX, 'utf8');
-// Remove the CJS export line so we can inline the code.
-utilsSrc = utilsSrc.replace(/^module\.exports\s*=\s*utils\s*;?\s*$/m, '').trimEnd();
 
 // ── 2. Balanced-brace extractor ─────────────────────────────────────────────
 function extractBalancedBraces(src, start) {
@@ -90,79 +87,115 @@ function extractEvalFn(src) {
     return { params: paramStr.trim(), body };
 }
 
-// ── 4. Process each evasion directory ───────────────────────────────────────
-const evasionDirs = fs.readdirSync(EVASION_DIR)
-    .filter(d => !d.startsWith('_'))
-    .filter(d => fs.statSync(path.join(EVASION_DIR, d)).isDirectory())
-    .sort();
-
-const evasionBlocks = [];
-
-for (const name of evasionDirs) {
-    const indexPath = path.join(EVASION_DIR, name, 'index.js');
-    if (!fs.existsSync(indexPath)) continue;
-
-    const src = fs.readFileSync(indexPath, 'utf8');
-    const result = extractEvalFn(src);
-
-    if (!result) {
-        console.warn(`WARN: could not extract payload from "${name}" — skipping.`);
-        continue;
+async function run() {
+    if (!(await exists(EVASION_DIR))) {
+        console.error('ERROR: puppeteer-extra-plugin-stealth not found.');
+        console.error('Run:   npm install puppeteer-extra-plugin-stealth');
+        process.exit(1);
     }
 
-    const { params, body } = result;
-    const needsUtils = /withUtils/.test(src);
+    await fsp.mkdir(OUT_DIR, { recursive: true });
 
-    // Build the call expression — pass `utils` if the evasion accepts it
-    const argList = needsUtils ? 'utils' : '';
-    const fnLiteral = `(${params}) => ${body}`;
-    const call = `(${fnLiteral})(${argList});`;
+    // ── 1. Utils block ──────────────────────────────────────────────────────────
+    let utilsSrc = await fsp.readFile(UTILS_INDEX, 'utf8');
+    // Remove the CJS export line so we can inline the code.
+    utilsSrc = utilsSrc.replace(/^module\.exports\s*=\s*utils\s*;?\s*$/m, '').trimEnd();
 
-    evasionBlocks.push(
-        `  // ── Evasion: ${name}\n` +
-        `  try {\n    ${call}\n  } catch (e) { console.warn('[stealth] ${name}:', e.message); }`
-    );
-    console.log(`  ✓  ${name}  (params: "${params}"${needsUtils ? ', with utils' : ''})`);
+    // ── 4. Process each evasion directory ───────────────────────────────────────
+    const allDirs = await fsp.readdir(EVASION_DIR);
+
+    const evasionDirNames = (await Promise.all(
+        allDirs
+            .filter(d => !d.startsWith('_'))
+            .map(async d => {
+                const stat = await fsp.stat(path.join(EVASION_DIR, d));
+                return stat.isDirectory() ? d : null;
+            })
+    )).filter(Boolean).sort();
+
+    const results = await Promise.all(evasionDirNames.map(async name => {
+        const indexPath = path.join(EVASION_DIR, name, 'index.js');
+        if (!(await exists(indexPath))) return null;
+
+        const src = await fsp.readFile(indexPath, 'utf8');
+        const result = extractEvalFn(src);
+
+        if (!result) {
+            return { name, error: `WARN: could not extract payload from "${name}" — skipping.` };
+        }
+
+        const { params, body } = result;
+        const needsUtils = /withUtils/.test(src);
+
+        // Build the call expression — pass `utils` if the evasion accepts it
+        const argList = needsUtils ? 'utils' : '';
+        const fnLiteral = `(${params}) => ${body}`;
+        const call = `(${fnLiteral})(${argList});`;
+
+        return {
+            name,
+            params,
+            needsUtils,
+            block: `  // ── Evasion: ${name}\n` +
+                   `  try {\n    ${call}\n  } catch (e) { console.warn('[stealth] ${name}:', e.message); }`
+        };
+    }));
+
+    const finalEvasionBlocks = [];
+    for (const res of results) {
+        if (!res) continue;
+        if (res.error) {
+            console.warn(res.error);
+            continue;
+        }
+        console.log(`  ✓  ${res.name}  (params: "${res.params}"${res.needsUtils ? ', with utils' : ''})`);
+        finalEvasionBlocks.push(res.block);
+    }
+
+    if (finalEvasionBlocks.length === 0) {
+        console.error('ERROR: No evasion payloads extracted. Check the plugin source.');
+        process.exit(1);
+    }
+
+    // ── 5. Assemble the combined IIFE ───────────────────────────────────────────
+    const lines = [
+        '// AUTO-GENERATED — do not edit. Run: node scripts/gen_stealth.js',
+        '(function () {',
+        '',
+        utilsSrc,
+        '',
+        'utils.init();',
+        '',
+        finalEvasionBlocks.join('\n\n'),
+        '',
+        '})();',
+    ];
+    const combinedJs = lines.join('\n');
+
+    await fsp.writeFile(OUT_JS, combinedJs, 'utf8');
+    console.log(`\nWrote ${OUT_JS}  (${(combinedJs.length / 1024).toFixed(1)} KB, ${finalEvasionBlocks.length} evasions)`);
+
+    // ── 6. Write the Go embed wrapper ────────────────────────────────────────────
+    const goLines = [
+        'package stealth',
+        '',
+        'import _ "embed"',
+        '',
+        '// JS is the combined stealth evasion script from puppeteer-extra-plugin-stealth.',
+        '// Inject via page.evaluateOnNewDocument to spoof browser fingerprinting.',
+        '// Regenerate: node scripts/gen_stealth.js',
+        '//',
+        '//go:embed evasions.js',
+        'var JS string',
+        '',
+    ];
+
+    await fsp.writeFile(OUT_GO, goLines.join('\n'), 'utf8');
+    console.log(`Wrote ${OUT_GO}`);
+    console.log('Done.');
 }
 
-if (evasionBlocks.length === 0) {
-    console.error('ERROR: No evasion payloads extracted. Check the plugin source.');
+run().catch(err => {
+    console.error(err);
     process.exit(1);
-}
-
-// ── 5. Assemble the combined IIFE ───────────────────────────────────────────
-const lines = [
-    '// AUTO-GENERATED — do not edit. Run: node scripts/gen_stealth.js',
-    '(function () {',
-    '',
-    utilsSrc,
-    '',
-    'utils.init();',
-    '',
-    evasionBlocks.join('\n\n'),
-    '',
-    '})();',
-];
-const combinedJs = lines.join('\n');
-
-fs.writeFileSync(OUT_JS, combinedJs, 'utf8');
-console.log(`\nWrote ${OUT_JS}  (${(combinedJs.length / 1024).toFixed(1)} KB, ${evasionBlocks.length} evasions)`);
-
-// ── 6. Write the Go embed wrapper ────────────────────────────────────────────
-const goLines = [
-    'package stealth',
-    '',
-    'import _ "embed"',
-    '',
-    '// JS is the combined stealth evasion script from puppeteer-extra-plugin-stealth.',
-    '// Inject via page.evaluateOnNewDocument to spoof browser fingerprinting.',
-    '// Regenerate: node scripts/gen_stealth.js',
-    '//',
-    '//go:embed evasions.js',
-    'var JS string',
-    '',
-];
-
-fs.writeFileSync(OUT_GO, goLines.join('\n'), 'utf8');
-console.log(`Wrote ${OUT_GO}`);
-console.log('Done.');
+});
