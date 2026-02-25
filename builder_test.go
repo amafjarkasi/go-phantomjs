@@ -3,8 +3,8 @@ package phantomjscloud_test
 import (
 	"testing"
 
-	phantomjscloud "github.com/jbdt/go-phantomjs"
-	"github.com/jbdt/go-phantomjs/ext/useragents"
+	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 )
 
 func TestPageRequestBuilder_Defaults(t *testing.T) {

@@ -1,6 +1,6 @@
 package viewport
 
-import phantomjscloud "github.com/jbdt/go-phantomjs"
+import phantomjscloud "github.com/amafjarkasi/go-phantomjs"
 
 // Preset is a named viewport configuration.
 type Preset struct {

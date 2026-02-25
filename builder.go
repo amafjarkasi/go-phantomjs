@@ -1,6 +1,6 @@
 package phantomjscloud
 
-import "github.com/jbdt/go-phantomjs/ext/useragents"
+import "github.com/amafjarkasi/go-phantomjs/ext/useragents"
 
 // PageRequestBuilder constructs a PageRequest using a fluent API.
 // It is the recommended way to compose requests from ext/ presets without
@@ -8,9 +8,9 @@ import "github.com/jbdt/go-phantomjs/ext/useragents"
 //
 // Use the ext/ packages to generate values:
 //
-//	import "github.com/jbdt/go-phantomjs/ext/blocklist"
-//	import "github.com/jbdt/go-phantomjs/ext/useragents"
-//	import "github.com/jbdt/go-phantomjs/ext/viewport"
+//	import "github.com/amafjarkasi/go-phantomjs/ext/blocklist"
+//	import "github.com/amafjarkasi/go-phantomjs/ext/useragents"
+//	import "github.com/amafjarkasi/go-phantomjs/ext/viewport"
 //
 //	req := phantomjscloud.NewPageRequestBuilder("https://example.com").
 //	    WithRenderType("jpeg").

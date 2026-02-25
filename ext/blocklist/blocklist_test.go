@@ -3,8 +3,8 @@ package blocklist_test
 import (
 	"testing"
 
-	phantomjscloud "github.com/jbdt/go-phantomjs"
-	"github.com/jbdt/go-phantomjs/ext/blocklist"
+	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+	"github.com/amafjarkasi/go-phantomjs/ext/blocklist"
 )
 
 func assertAllBlocked(t *testing.T, name string, rules []phantomjscloud.ResourceModifier) {

@@ -1,3 +1,3 @@
-module github.com/jbdt/go-phantomjs
+module github.com/amafjarkasi/go-phantomjs
 
-go 1.25.0
+go 1.21

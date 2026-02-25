@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jbdt/go-phantomjs/ext/stealth"
-	"github.com/jbdt/go-phantomjs/ext/useragents"
+	"github.com/amafjarkasi/go-phantomjs/ext/stealth"
+	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 )
 
 // Proxy Builtin Locations (to be used with ProxyBuiltin.Location)

@@ -1,6 +1,6 @@
 package blocklist
 
-import phantomjscloud "github.com/jbdt/go-phantomjs"
+import phantomjscloud "github.com/amafjarkasi/go-phantomjs"
 
 // ResourceModifier returns a PhantomJsCloud ResourceModifier that blacklists the given URL regex.
 func block(regex string) phantomjscloud.ResourceModifier {

@@ -3,7 +3,7 @@ package viewport_test
 import (
 	"testing"
 
-	"github.com/jbdt/go-phantomjs/ext/viewport"
+	"github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
 
 func TestDesktopPresetDimensions(t *testing.T) {

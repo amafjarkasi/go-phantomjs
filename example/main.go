@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
-	phantomjscloud "github.com/jbdt/go-phantomjs"
-	"github.com/jbdt/go-phantomjs/ext/blocklist"
-	"github.com/jbdt/go-phantomjs/ext/useragents"
-	"github.com/jbdt/go-phantomjs/ext/viewport"
+	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+	"github.com/amafjarkasi/go-phantomjs/ext/blocklist"
+	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
+	"github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
 
 func main() {

@@ -1,5 +1,10 @@
 # go-phantomjs
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/amafjarkasi/go-phantomjs.svg)](https://pkg.go.dev/github.com/amafjarkasi/go-phantomjs)
+[![CI](https://github.com/amafjarkasi/go-phantomjs/actions/workflows/ci.yml/badge.svg)](https://github.com/amafjarkasi/go-phantomjs/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/badge/go-1.21+-blue)](https://go.dev/dl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 `go-phantomjs` is a production-ready Go client library for the [PhantomJsCloud](https://phantomjscloud.com/) API. Beyond a thin API wrapper, it ships a full browser-automation scripting layer and a modular extension ecosystem (`ext/`) that composes fingerprint evasions, realistic browser profiles, URL blocklists, and viewport presets into a single fluent API — letting you build sophisticated headless-browser scrapers entirely in Go.
 
 ## Features
@@ -21,7 +26,7 @@
 ## Installation
 
 ```bash
-go get github.com/jbdt/go-phantomjs
+go get github.com/amafjarkasi/go-phantomjs
 ```
 
 ## Quick Start
@@ -36,7 +41,7 @@ package main
 import (
  "os"
  "log"
- "github.com/jbdt/go-phantomjs"
+ "github.com/amafjarkasi/go-phantomjs"
 )
 
 func main() {
@@ -78,7 +83,7 @@ package main
 import (
  "fmt"
  "log"
- "github.com/jbdt/go-phantomjs"
+ "github.com/amafjarkasi/go-phantomjs"
 )
 
 func main() {
@@ -111,7 +116,7 @@ package main
 import (
  "fmt"
  "log"
- "github.com/jbdt/go-phantomjs"
+ "github.com/amafjarkasi/go-phantomjs"
 )
 
 func main() {
@@ -243,7 +248,7 @@ script := phantomjscloud.NewOverseerScriptBuilder().
 The `ext/blocklist` package provides pre-built `ResourceModifier` slices for the most common scraping optimizations. Blocking ads and trackers alone can cut a typical page's request volume by 40–60% and reduce billing costs proportionally.
 
 ```go
-import "github.com/jbdt/go-phantomjs/ext/blocklist"
+import "github.com/amafjarkasi/go-phantomjs/ext/blocklist"
 
 req := &phantomjscloud.PageRequest{
   URL: "https://edition.cnn.com",
@@ -288,7 +293,7 @@ The `ext/useragents` package ships 15 current UA string constants covering every
 **Profile constructors:** `ChromeWindowsProfile()`, `ChromeMacProfile()`, `FirefoxWindowsProfile()`
 
 ```go
-import "github.com/jbdt/go-phantomjs/ext/useragents"
+import "github.com/amafjarkasi/go-phantomjs/ext/useragents"
 
 // Simple: just the UA string in RequestSettings
 req := &phantomjscloud.PageRequest{
@@ -320,7 +325,7 @@ The `ext/viewport` package provides named `Preset` variables for common screen c
 **In `RenderSettings`** (affects the rendered output size and clip):
 
 ```go
-import "github.com/jbdt/go-phantomjs/ext/viewport"
+import "github.com/amafjarkasi/go-phantomjs/ext/viewport"
 
 req := &phantomjscloud.PageRequest{
   URL:            "https://example.com",
@@ -352,10 +357,10 @@ Combining all extensions gives you the strongest bot-evasion setup:
 
 ```go
 import (
-  phantomjscloud "github.com/jbdt/go-phantomjs"
-  "github.com/jbdt/go-phantomjs/ext/blocklist"
-  "github.com/jbdt/go-phantomjs/ext/useragents"
-  "github.com/jbdt/go-phantomjs/ext/viewport"
+  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+  "github.com/amafjarkasi/go-phantomjs/ext/blocklist"
+  "github.com/amafjarkasi/go-phantomjs/ext/useragents"
+  "github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
 
 profile := useragents.ChromeWindowsProfile()

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jbdt/go-phantomjs/ext/useragents"
+	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 )
 
 var allUAConstants = []struct {
