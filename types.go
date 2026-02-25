@@ -1,8 +1,14 @@
 package phantomjscloud
 
-// UserRequest represents the root POST payload (IUserRequest)
+// UserRequest represents the root POST payload (IUserRequest).
+// PhantomJsCloud accepts either a raw PageRequest, or a UserRequest containing multiple pages.
 type UserRequest struct {
-	Pages []PageRequest `json:"pages"`
+	Pages              []PageRequest `json:"pages"`
+	Backend            string        `json:"backend,omitempty"`
+	BackendDiscrete    string        `json:"backendDiscrete,omitempty"`
+	OutputAsJson       bool          `json:"outputAsJson,omitempty"`
+	Proxy              interface{}   `json:"proxy,omitempty"`
+	WebSecurityEnabled bool          `json:"webSecurityEnabled,omitempty"`
 }
 
 // PageRequest represents the IPageRequest interface
@@ -12,12 +18,13 @@ type PageRequest struct {
 	RenderType      string          `json:"renderType,omitempty"`
 	OutputAsJson    bool            `json:"outputAsJson,omitempty"`
 	OverseerScript  string          `json:"overseerScript,omitempty"`
-	Proxy           string          `json:"proxy,omitempty"`
+	Proxy           interface{}     `json:"proxy,omitempty"` // Can be string or ProxyOptions
 	Backend         string          `json:"backend,omitempty"`
 	SuppressJson    []string        `json:"suppressJson,omitempty"`
 	QueryJson       interface{}     `json:"queryJson,omitempty"`
 	UrlSettings     *UrlSettings    `json:"urlSettings,omitempty"`
 	Scripts         *Scripts        `json:"scripts,omitempty"`
+	ScriptSettings  *ScriptSettings `json:"scriptSettings,omitempty"`
 	RequestSettings RequestSettings `json:"requestSettings,omitempty"`
 	RenderSettings  RenderSettings  `json:"renderSettings,omitempty"`
 }
@@ -33,6 +40,30 @@ type Scripts struct {
 	Load         []string `json:"load,omitempty"`
 	DomReady     []string `json:"domReady,omitempty"`
 	LoadFinished []string `json:"loadFinished,omitempty"`
+}
+
+type ScriptSettings struct {
+	Async       bool `json:"async,omitempty"`
+	StopOnError bool `json:"stopOnError,omitempty"`
+}
+
+// ProxyOptions provides advanced proxy configuration (IProxyOptions)
+type ProxyOptions struct {
+	Builtin     *ProxyBuiltin `json:"builtin,omitempty"`
+	Custom      *ProxyCustom  `json:"custom,omitempty"`
+	Geolocation string        `json:"geolocation,omitempty"`
+}
+
+type ProxyBuiltin struct {
+	Location string `json:"location"`
+	Type     string `json:"type,omitempty"`
+}
+
+type ProxyCustom struct {
+	Host        string            `json:"host"`
+	Auth        string            `json:"auth,omitempty"`
+	AuthHeaders map[string]string `json:"authHeaders,omitempty"`
+	Type        string            `json:"type,omitempty"`
 }
 
 // RequestSettings represents the IRequestSettings interface
@@ -145,6 +176,10 @@ type PdfOptions struct {
 	Width               string  `json:"width,omitempty"`
 	Height              string  `json:"height,omitempty"`
 	Margin              *Margin `json:"margin,omitempty"`
+	OmitBackground      bool    `json:"omitBackground,omitempty"`
+	OnepageFudgeFactor  float64 `json:"onepageFudgeFactor,omitempty"`
+	PreferCSSPageSize   bool    `json:"preferCSSPageSize,omitempty"`
+	Timeout             int     `json:"timeout,omitempty"`
 }
 
 type Margin struct {

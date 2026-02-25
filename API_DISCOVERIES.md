@@ -51,3 +51,24 @@ Most APIs throw 429 warnings on quota usage directly in the API payload payload.
 
 * **Discovery**: We identified `pjsc-billing-credit-cost`, `pjsc-content-status-code`, and `pjsc-content-done-when`.
 * **Actionable Implementation**: Built `parseMetadata()` manually mapping `http.Header` injections into a natively bound struct `ResponseMetadata` attached whenever the struct is deserialized.
+
+## 8. Batch Loading via UserRequest
+
+While `PageRequest` is the fundamental building block for loading a page, PhantomJsCloud explicitly supports bulk processes internally via the `UserRequest` array structure.
+
+* **Discovery**: Submitting a JSON array of `pages` to the root API will execute all of them internally but *only* render the last successfully loaded page. This is surprisingly useful for executing multi-stage logins where each stage triggers a top-level page redirection.
+* **Actionable Implementation**: We fully fleshed out the `UserRequest` struct, giving users the explicit design choice between submitting independent `PageRequest` definitions or a batched `UserRequest`. Furthermore, `UserRequest` allows configuring global overrides like `BackendDiscrete` and `OutputAsJson`.
+
+## 9. Specialized Proxy Contexts (IProxyOptions)
+
+Bypassing region locks usually involves setting simple strings, but PhantomJsCloud provides much more granular routing options that aren't obvious at first glance.
+
+* **Discovery**: The `Proxy` parameter is a generic union type: `string | IProxyOptions`. It wasn't just a basic URL override string. Using the `IProxyOptions` object format, it allows targeting internal service proxies like anonymizing traffic specifically through German IPs `(ProxyBuiltin{Location: "de"})`, routing through datacenter IPs vs residential, or securely managing proxy HTTP basic auth headers directly without appending them to the connection string manually.
+* **Actionable Implementation**: Mapped the union property natively utilizing Go's `interface{}` parameter mechanism. Also added structured classes for `ProxyOptions`, `ProxyBuiltin`, and `ProxyCustom` allowing strongly typed programmatic access instead of throwing string concatenation at the wall.
+
+## 10. Granular PDF & Screenshot Options
+
+Generating PDFs correctly from a browser engine requires intricate tweaks to trick the page into formatting for print layout.
+
+* **Discovery**: The `PdfOptions` interface contains specific nuances beyond just margins. Properties like `omitBackground` (forcing PDFs to render transparent/removed background graphics), `preferCSSPageSize` (forcing the PDF to adhere to the webpage's `@page` CSS rule if defined), and `onepageFudgeFactor` (fixing standard bugs when converting entire continuous scroll pages into single-page PDFs).
+* **Actionable Implementation**: Updated the struct to strictly map `OmitBackground`, `PreferCSSPageSize`, `OnepageFudgeFactor`, and explicitly supported integer timeouts overrides just for the PDF rendering phase itself.
