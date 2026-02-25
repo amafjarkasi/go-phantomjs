@@ -29,6 +29,12 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 
 // WithTimeout sets the HTTP timeout for all requests.
 // Default is 120s (PhantomJsCloud renders can be slow on complex pages).
+// WithEndpoint allows overriding the default API endpoint.
+// This is useful for testing or if you need to use a proxy.
+func WithEndpoint(url string) ClientOption {
+	return func(c *Client) { c.endpoint = url }
+}
+
 func WithTimeout(d time.Duration) ClientOption {
 	return func(c *Client) { c.httpClient.Timeout = d }
 }
@@ -36,6 +42,7 @@ func WithTimeout(d time.Duration) ClientOption {
 // Client is a PhantomJsCloud API client.
 type Client struct {
 	apiKey     string
+	endpoint   string
 	httpClient *http.Client
 }
 
@@ -53,6 +60,7 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 	c := &Client{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
+		endpoint:   baseEndpointUrl,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -86,7 +94,7 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 
 // DoContext is like Do but honours the provided context for cancellation and deadlines.
 func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
-	endpoint := baseEndpointUrl + c.apiKey + "/"
+	endpoint := c.endpoint + c.apiKey + "/"
 
 	payload, err := json.Marshal(req)
 	if err != nil {
