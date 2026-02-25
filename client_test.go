@@ -397,3 +397,14 @@ func TestPageRequestBuilder_WithUrlSettings(t *testing.T) {
 		t.Errorf("expected UrlSettings.Operation=POST, got: %+v", req.UrlSettings)
 	}
 }
+
+func TestDoContext_EmptyKey(t *testing.T) {
+	c := NewClient("")
+	_, err := c.DoContext(context.Background(), &UserRequest{})
+	if err == nil {
+		t.Fatal("expected error for empty API key, got nil")
+	}
+	if err.Error() != "API key is required" {
+		t.Errorf("expected 'API key is required', got '%v'", err)
+	}
+}

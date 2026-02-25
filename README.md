@@ -37,7 +37,7 @@ go get github.com/amafjarkasi/go-phantomjs
 
 ```go
 // Minimal — uses demo key (low quota)
-client := phantomjscloud.NewClient("")
+client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"))
 
 // Production — with your API key and a custom timeout
 client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"),
@@ -78,7 +78,7 @@ import (
 )
 
 func main() {
-    client := phantomjscloud.NewClient("") // demo key
+    client := phantomjscloud.NewClient("YOUR_API_KEY")
     
     // Fetch purely the stripped text of a webpage (Great for LLMs!)
     text, err := client.FetchPlainText("https://example.com")
@@ -122,7 +122,7 @@ import (
 func main() {
  // Passing an empty string uses the free demo key (low quota).
  // Replace with your actual PhantomJsCloud API key.
- client := phantomjscloud.NewClient("")
+ client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"))
 
  req := &phantomjscloud.PageRequest{
   URL:        "https://example.com",

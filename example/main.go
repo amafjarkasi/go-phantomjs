@@ -13,6 +13,9 @@ import (
 
 func main() {
 	apiKey := os.Getenv("PHANTOMJSCLOUD_API_KEY")
+	if apiKey == "" {
+		log.Fatal("PHANTOMJSCLOUD_API_KEY environment variable is required")
+	}
 	client := phantomjscloud.NewClient(apiKey)
 
 	// ── Example A: Full Stealth Scrape ───────────────────────────────────────
