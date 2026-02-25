@@ -3,7 +3,6 @@ package phantomjscloud
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,12 +20,10 @@ func TestClient_Do(t *testing.T) {
 	}
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-
 		var ur UserRequest
-		err := json.Unmarshal(body, &ur)
+		err := json.NewDecoder(r.Body).Decode(&ur)
 		if err != nil {
-			t.Fatalf("Server failed to unmarshal UserRequest payload: %v", err)
+			t.Fatalf("Server failed to decode UserRequest payload: %v", err)
 		}
 
 		if len(ur.Pages) != 2 {
@@ -103,9 +100,8 @@ func TestFetchWithAutomation(t *testing.T) {
 	const wantScript = "await page.goto('https://example.com');\n"
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
 		var ur UserRequest
-		if err := json.Unmarshal(body, &ur); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
 			t.Errorf("Server: failed to decode request: %v", err)
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
