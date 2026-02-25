@@ -1,11 +1,11 @@
 <!-- LIFE_BRIDGE_START -->
-> **⚡ L.I.F.E LIVE STATE** — auto-synced every 30s · Last Sync: 2026-02-25T05:27:58.057Z
+> **⚡ L.I.F.E LIVE STATE** — auto-synced every 30s · Last Sync: 2026-02-25T05:32:58.164Z
 >
 > ## 🔴 LIVE L.I.F.E ENGINE STATE
 > - **Session state:** INACTIVE — treat all turns as a continuation; do NOT reset context.
 > - **Venturi 3-Gate pipeline:** System Efficiency: 99.3% | Gate 1 (Signal) 100.0% · Gate 2 (State) 100.0% · Gate 3 (Action) 98.0% — target ≥ 98% per gate.
 > - **Stage 4 Self-learning:** ACTIVE — Acceptance Rate: 45.8%, feedback rate 518.8%, 7 suggestions suppressed. Mirror accepted patterns; avoid rejected ones.
-> - **Φ (proto-consciousness):** 11.778 — 🧠 HIGH: apply consciousness-aware penalty weighting across all three gates.
+> - **Φ (proto-consciousness):** 11.588 — 🧠 HIGH: apply consciousness-aware penalty weighting across all three gates.
 >
 > **Copilot instructions for this session:**
 > - Reference the **Venturi 3-Gate** scores above when assessing code quality or suggesting optimisations.
