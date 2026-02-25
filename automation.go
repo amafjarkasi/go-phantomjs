@@ -4,7 +4,37 @@ import (
 	"strconv"
 )
 
-// Proxy Types
+// Proxy Builtin Locations (to be used with ProxyBuiltin.Location)
+const (
+	ProxyLocationAny = "any" // Worldwide (Global)
+	ProxyLocationAU  = "au"  // Australia
+	ProxyLocationBR  = "br"  // Brazil
+	ProxyLocationCN  = "cn"  // China
+	ProxyLocationDE  = "de"  // Germany
+	ProxyLocationES  = "es"  // Spain
+	ProxyLocationFR  = "fr"  // France
+	ProxyLocationGB  = "gb"  // Great Britain
+	ProxyLocationHK  = "hk"  // Hong Kong
+	ProxyLocationID  = "id"  // Indonesia
+	ProxyLocationIL  = "il"  // Israel
+	ProxyLocationIN  = "in"  // India
+	ProxyLocationIT  = "it"  // Italy
+	ProxyLocationJP  = "jp"  // Japan
+	ProxyLocationKR  = "kr"  // South Korea
+	ProxyLocationMX  = "mx"  // Mexico
+	ProxyLocationMY  = "my"  // Malaysia
+	ProxyLocationNL  = "nl"  // Netherlands
+	ProxyLocationRU  = "ru"  // Russia
+	ProxyLocationSA  = "sa"  // Saudi Arabia
+	ProxyLocationSG  = "sg"  // Singapore
+	ProxyLocationTH  = "th"  // Thailand
+	ProxyLocationTR  = "tr"  // Turkey
+	ProxyLocationTW  = "tw"  // Taiwan
+	ProxyLocationUS  = "us"  // United States
+	ProxyLocationAE  = "ae"  // United Arab Emirates
+)
+
+// Legacy Proxy Types (for simple proxy string assignment)
 const (
 	ProxyAnonAny = "anon-any" // Random Anonymous proxy
 	ProxyAnonUK  = "anon-uk"  // Anonymous proxy in United Kingdom

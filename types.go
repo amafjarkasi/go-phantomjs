@@ -127,6 +127,7 @@ type ResourceModifier struct {
 // RenderSettings represents the IRenderSettings interface
 type RenderSettings struct {
 	Quality               int               `json:"quality,omitempty"`
+	MaxRenderTime         int               `json:"maxRenderTime,omitempty"`
 	PassThroughHeaders    bool              `json:"passThroughHeaders,omitempty"`
 	PassThroughStatusCode bool              `json:"passThroughStatusCode,omitempty"`
 	Viewport              *Viewport         `json:"viewport,omitempty"`
