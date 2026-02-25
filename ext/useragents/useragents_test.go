@@ -47,6 +47,13 @@ func TestProfileRequiredFields(t *testing.T) {
 		{"ChromeWindowsProfile", useragents.ChromeWindowsProfile()},
 		{"ChromeMacProfile", useragents.ChromeMacProfile()},
 		{"FirefoxWindowsProfile", useragents.FirefoxWindowsProfile()},
+		{"FirefoxMacProfile", useragents.FirefoxMacProfile()},
+		{"SafariMacProfile", useragents.SafariMacProfile()},
+		{"SafariIPadProfile", useragents.SafariIPadProfile()},
+		{"SafariIPhoneProfile", useragents.SafariIPhoneProfile()},
+		{"EdgeWindowsProfile", useragents.EdgeWindowsProfile()},
+		{"ChromeAndroidProfile", useragents.ChromeAndroidProfile()},
+		{"ChromeAndroidTabletProfile", useragents.ChromeAndroidTabletProfile()},
 	}
 
 	requiredKeys := []string{"Accept-Language", "Accept-Encoding", "Accept"}
@@ -74,6 +81,9 @@ func TestChromiumProfilesHaveSecCHUA(t *testing.T) {
 	}{
 		{"ChromeWindowsProfile", useragents.ChromeWindowsProfile()},
 		{"ChromeMacProfile", useragents.ChromeMacProfile()},
+		{"EdgeWindowsProfile", useragents.EdgeWindowsProfile()},
+		{"ChromeAndroidProfile", useragents.ChromeAndroidProfile()},
+		{"ChromeAndroidTabletProfile", useragents.ChromeAndroidTabletProfile()},
 	}
 	for _, tc := range chromiumProfiles {
 		if v := tc.profile.Headers["Sec-CH-UA"]; v == "" {

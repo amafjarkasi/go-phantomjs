@@ -357,6 +357,30 @@ func (b *OverseerScriptBuilder) ApplyViewport(v Viewport) *OverseerScriptBuilder
 	return b
 }
 
+// DragAndDrop simulates dragging an element from one selector to another.
+func (b *OverseerScriptBuilder) DragAndDrop(sourceSelector, targetSelector string) *OverseerScriptBuilder {
+	b.script += "await page.dragAndDrop('" + sourceSelector + "', '" + targetSelector + "');\n"
+	return b
+}
+
+// WaitForUrl waits until the page URL contains the specified string.
+func (b *OverseerScriptBuilder) WaitForUrl(urlFragment string) *OverseerScriptBuilder {
+	b.script += "await page.waitForFunction((url) => window.location.href.includes(url), {}, '" + urlFragment + "');\n"
+	return b
+}
+
+// GoBack navigates to the previous page in history.
+func (b *OverseerScriptBuilder) GoBack() *OverseerScriptBuilder {
+	b.script += "await page.goBack();\n"
+	return b
+}
+
+// GoForward navigates to the next page in history.
+func (b *OverseerScriptBuilder) GoForward() *OverseerScriptBuilder {
+	b.script += "await page.goForward();\n"
+	return b
+}
+
 // Build returns the finalized script.
 func (b *OverseerScriptBuilder) Build() string {
 	return b.script

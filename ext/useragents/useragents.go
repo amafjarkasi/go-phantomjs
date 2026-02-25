@@ -117,3 +117,125 @@ func FirefoxWindowsProfile() Profile {
 		},
 	}
 }
+
+// FirefoxMacProfile returns a complete Firefox/Mac browser profile.
+func FirefoxMacProfile() Profile {
+	return Profile{
+		UserAgent: FirefoxMac,
+		Headers: map[string]string{
+			"Accept-Language": "en-US,en;q=0.5",
+			"Accept-Encoding": "gzip, deflate, br",
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+			"DNT":             "1",
+			"Sec-Fetch-Dest":  "document",
+			"Sec-Fetch-Mode":  "navigate",
+			"Sec-Fetch-Site":  "none",
+			"Sec-Fetch-User":  "?1",
+		},
+	}
+}
+
+// SafariMacProfile returns a complete Safari/Mac browser profile.
+func SafariMacProfile() Profile {
+	return Profile{
+		UserAgent: SafariMac,
+		Headers: map[string]string{
+			"Accept-Language": "en-US,en;q=0.9",
+			"Accept-Encoding": "gzip, deflate, br",
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"Sec-Fetch-Dest":  "document",
+			"Sec-Fetch-Mode":  "navigate",
+			"Sec-Fetch-Site":  "none",
+		},
+	}
+}
+
+// SafariIPadProfile returns a complete Safari/iPad browser profile.
+func SafariIPadProfile() Profile {
+	return Profile{
+		UserAgent: SafariIPad,
+		Headers: map[string]string{
+			"Accept-Language": "en-US,en;q=0.9",
+			"Accept-Encoding": "gzip, deflate, br",
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"Sec-Fetch-Dest":  "document",
+			"Sec-Fetch-Mode":  "navigate",
+			"Sec-Fetch-Site":  "none",
+		},
+	}
+}
+
+// SafariIPhoneProfile returns a complete Safari/iPhone browser profile.
+func SafariIPhoneProfile() Profile {
+	return Profile{
+		UserAgent: SafariIPhone,
+		Headers: map[string]string{
+			"Accept-Language": "en-US,en;q=0.9",
+			"Accept-Encoding": "gzip, deflate, br",
+			"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+			"Sec-Fetch-Dest":  "document",
+			"Sec-Fetch-Mode":  "navigate",
+			"Sec-Fetch-Site":  "none",
+		},
+	}
+}
+
+// EdgeWindowsProfile returns a complete Edge/Windows browser profile.
+func EdgeWindowsProfile() Profile {
+	return Profile{
+		UserAgent: EdgeWin,
+		Headers: map[string]string{
+			"Accept-Language":           "en-US,en;q=0.9",
+			"Accept-Encoding":           "gzip, deflate, br",
+			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+			"Upgrade-Insecure-Requests": "1",
+			"Sec-CH-UA":                 `"Chromium";v="122", "Not(A:Brand";v="24", "Microsoft Edge";v="122"`,
+			"Sec-CH-UA-Mobile":          "?0",
+			"Sec-CH-UA-Platform":        `"Windows"`,
+			"Sec-Fetch-Dest":            "document",
+			"Sec-Fetch-Mode":            "navigate",
+			"Sec-Fetch-Site":            "none",
+			"Sec-Fetch-User":            "?1",
+		},
+	}
+}
+
+// ChromeAndroidProfile returns a complete Chrome/Android browser profile.
+func ChromeAndroidProfile() Profile {
+	return Profile{
+		UserAgent: ChromeAndroid,
+		Headers: map[string]string{
+			"Accept-Language":           "en-US,en;q=0.9",
+			"Accept-Encoding":           "gzip, deflate, br",
+			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+			"Upgrade-Insecure-Requests": "1",
+			"Sec-CH-UA":                 `"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"`,
+			"Sec-CH-UA-Mobile":          "?1",
+			"Sec-CH-UA-Platform":        `"Android"`,
+			"Sec-Fetch-Dest":            "document",
+			"Sec-Fetch-Mode":            "navigate",
+			"Sec-Fetch-Site":            "none",
+			"Sec-Fetch-User":            "?1",
+		},
+	}
+}
+
+// ChromeAndroidTabletProfile returns a complete Chrome/Android Tablet browser profile.
+func ChromeAndroidTabletProfile() Profile {
+	return Profile{
+		UserAgent: ChromeAndroidTablet,
+		Headers: map[string]string{
+			"Accept-Language":           "en-US,en;q=0.9",
+			"Accept-Encoding":           "gzip, deflate, br",
+			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+			"Upgrade-Insecure-Requests": "1",
+			"Sec-CH-UA":                 `"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"`,
+			"Sec-CH-UA-Mobile":          "?0",
+			"Sec-CH-UA-Platform":        `"Android"`,
+			"Sec-Fetch-Dest":            "document",
+			"Sec-Fetch-Mode":            "navigate",
+			"Sec-Fetch-Site":            "none",
+			"Sec-Fetch-User":            "?1",
+		},
+	}
+}
