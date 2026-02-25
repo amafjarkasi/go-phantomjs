@@ -30,16 +30,12 @@ func main() {
 		RenderScreenshot(true).
 		Build()
 
-	stealthReq := &phantomjscloud.PageRequest{
-		URL:            "about:blank", // Goto() in the script overrides this
-		RenderType:     "jpeg",
-		OverseerScript: stealthScript,
-		RequestSettings: phantomjscloud.RequestSettings{
-			UserAgent:        profile.UserAgent,
-			CustomHeaders:    profile.Headers,
-			ResourceModifier: blocklist.Lightweight(), // block ads + trackers + fonts
-		},
-	}
+	stealthReq := phantomjscloud.NewPageRequestBuilder("about:blank").
+		WithRenderType("jpeg").
+		WithProfile(profile).
+		WithBlocklist(blocklist.Lightweight()). // block ads + trackers + fonts
+		WithOverseerScript(stealthScript).
+		Build()
 	resp, err := client.DoPage(stealthReq)
 	if err != nil {
 		log.Printf("Example A error: %v\n", err)

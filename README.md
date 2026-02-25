@@ -12,7 +12,7 @@
 - **`PageRequestBuilder`**: Fluent builder for `PageRequest` itself — composes `ext/` presets into a complete request without touching nested struct fields. Chain `WithRenderType`, `WithProxy`, `WithProfile`, `WithBlocklist`, `WithRenderSettings`, `WithViewport`, `WithOverseerScriptBuilder`, and more.
 - **Fluent Automation Builder**: `OverseerScriptBuilder` generates complex Puppeteer-style automation scripts without string concatenation — click, type, scroll, hover, inject scripts, evaluate JS, take mid-execution screenshots, and manage cookies and headers, all chainable.
 - **`FetchWithAutomation()`**: Execute a script and get the native structured return value from any `Evaluate()` call back as a parsed Go `any` — no JSON unwrapping required.
-- **Convenience Fetchers**: One-line helpers `FetchPlainText()`, `FetchPDF()`, and `FetchScreenshot()` skip the response envelope entirely, returning raw bytes ready to write to disk or feed into an LLM.
+- **Convenience Fetchers**: One-line helpers `FetchPlainText()`, `FetchPDF()`, `FetchScreenshot()`, and `RenderRawHTML()` skip the response envelope entirely — `RenderRawHTML` renders an in-memory HTML string without needing a web server, perfect for PDF invoice and report generation.
 - **Full API Type Coverage**: Strongly-typed Go structs for every PhantomJsCloud parameter — `PageRequest`, `RequestSettings`, `RenderSettings`, `ResourceModifier`, `DoneWhen`, `UrlSettings`, `ProxyOptions`, and more — with JSON tags already wired.
 - **Stealth Evasions** (`ext/stealth`): One call — `ApplyStealth()` — injects 14 browser fingerprinting evasions ported from [`puppeteer-extra-plugin-stealth`](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth), spoofing `navigator.webdriver`, WebGL vendor strings, Chrome runtime APIs, iframe `contentWindow`, media codec lists, outer window dimensions, and more. The evasion payload is embedded at compile time via `//go:embed` — zero runtime deps.
 - **Browser Profiles** (`ext/useragents`): 15+ current UA string constants covering Chrome, Firefox, Safari, Edge, and mobile browsers, plus `Profile` structs that bundle a UA with a complete set of matching `Sec-CH-UA`, `Accept`, `Accept-Language`, and `Sec-Fetch-*` headers. Apply in one call with `UseProfile()` on the builder.
@@ -527,6 +527,20 @@ To extract cookies, headers, and extensive metadata, use `OutputAsJson: true` an
    },
   },
  }
+```
+
+#### Render Raw HTML Strings
+
+`RenderRawHTML()` lets you upload a raw HTML string and render it through PhantomJsCloud as if it were a real page — useful for templated PDF invoices, emails, or dynamically generated reports without needing a web server.
+
+```go
+ html := `<html><body><h1>Invoice #1234</h1><p>Total: $99.00</p></body></html>`
+
+ pdfBytes, err := client.RenderRawHTML(html, "pdf", nil)
+ if err != nil {
+  log.Fatal(err)
+ }
+ os.WriteFile("invoice.pdf", pdfBytes, 0o644)
 ```
 
 ## Repository Structure

@@ -211,7 +211,7 @@ func (c *Client) RenderRawHTML(html string, renderType string, renderSettings *R
 	return decoded, nil
 }
 
-// FetchWithAutomation executes a built overseasScript and automatically extracts the underlying arbitrary automationResult payload.
+// FetchWithAutomation executes a built overseerScript and automatically extracts the underlying arbitrary automationResult payload.
 func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder) (interface{}, error) {
 	req := &PageRequest{
 		URL:            url,
