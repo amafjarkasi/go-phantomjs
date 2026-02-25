@@ -146,6 +146,36 @@ func main() {
 }
 ```
 
+### Comprehensive Automation Scripting
+
+The `OverseerScriptBuilder` supports nearly all primary PhantomJsCloud automation flags. Check out this comprehensive usage example that demonstrates navigating, injecting custom scripts, taking screenshots during execution, and manually resolving the queue:
+
+```go
+ script := phantomjscloud.NewOverseerScriptBuilder().
+  Goto("https://example.com").
+  AddScriptTag("https://example.com/utility.js").
+  Evaluate("() => { console.log('Injected custom DOM manipulation!'); }").
+  WaitForSelector("body").
+  ScrollBy(0, 500).            // Scroll down exactly 500px
+  Hover("button#menu").        // Trigger CSS hover states natively
+  Focus("input#search").       // Focus input fields
+  ClearInput("input#search").  // Empty inputs reliably
+  Type("input#search", "hello world", 100). 
+  Select("select#country", "US", "UK"). // Support for array Multi-select!
+  KeyboardPress("Enter", 1).   // Send keystrokes natively
+  SetCookie("session", "abc", "example.com"). // Drop cookies directly
+  AddStyleTag("body { background: red; }"). // Inject styles
+  SetViewport(1920, 1080).     // Dynamically override bounds
+  WaitForFunction("window.ready === true"). // Native JS waiting
+  WaitForDelay(2000).          // Pause for UI transitions
+  ManualWait().                // Take control over the completion event
+  RenderScreenshot(true).      // Take a sync screenshot mid-execution!
+  Reload().                    // Native browser refresh
+  DeleteCookie("session", "example.com"). // Remove cookies natively
+  Done().                      // Tell the engine we're finished manually
+  Build()
+```
+
 ### Advanced Features
 
 #### Emulate Print Media for PDF Generation

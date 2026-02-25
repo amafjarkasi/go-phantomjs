@@ -96,16 +96,52 @@ func TestParseMetadata(t *testing.T) {
 
 func TestOverseerScriptBuilder(t *testing.T) {
 	b := NewOverseerScriptBuilder()
-	script := b.AddScriptTag("http://example.com/script.js").
+	script := b.Goto("http://example.com").
+		AddScriptTag("http://example.com/script.js").
 		Evaluate("() => { return 'done'; }").
 		WaitForSelector("body").
+		Hover("button#menu").
+		Focus("input#name").
+		ClearInput("input#name").
 		Type("input#name", "test user", 100).
+		Select("select#country", "US", "UK").
+		KeyboardPress("Enter", 1).
+		WaitForDelay(2000).
+		ScrollBy(0, 500).
+		Reload().
+		AddStyleTag("body { background: red; }").
+		SetViewport(1920, 1080).
+		WaitForFunction("window.ready === true").
+		SetCookie("session", "123", "example.com").
+		DeleteCookie("old", "example.com").
+		ManualWait().
+		RenderContent().
+		RenderScreenshot(true).
+		Done().
 		Build()
 
-	expected := "await page.addScriptTag({url: 'http://example.com/script.js'});\n" +
+	expected := "await page.goto('http://example.com');\n" +
+		"await page.addScriptTag({url: 'http://example.com/script.js'});\n" +
 		"await page.evaluate(() => { return 'done'; });\n" +
 		"await page.waitForSelector('body');\n" +
-		"await page.type('input#name', 'test user',{delay:100});\n"
+		"await page.hover('button#menu');\n" +
+		"await page.focus('input#name');\n" +
+		"await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, 'input#name');\n" +
+		"await page.type('input#name', 'test user',{delay:100});\n" +
+		"await page.select('select#country', 'US', 'UK');\n" +
+		"await page.keyboard.press('Enter');\n" +
+		"await page.waitForDelay(2000);\n" +
+		"await page.evaluate((x, y) => { window.scrollBy(x, y); }, 0, 500);\n" +
+		"await page.reload();\n" +
+		"await page.addStyleTag({content: `body { background: red; }`});\n" +
+		"await page.setViewport({width: 1920, height: 1080});\n" +
+		"await page.waitForFunction(window.ready === true);\n" +
+		"await page.setCookie({name: 'session', value: '123', domain: 'example.com'});\n" +
+		"await page.deleteCookie({name: 'old', url: 'example.com'});\n" +
+		"page.manualWait();\n" +
+		"page.render.content();\n" +
+		"await page.render.screenshot();\n" +
+		"page.done();\n"
 
 	if script != expected {
 		t.Errorf("Builder output mismatch.\nExpected:\n%s\nGot:\n%s", expected, script)
