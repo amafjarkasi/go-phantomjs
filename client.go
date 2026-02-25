@@ -123,6 +123,26 @@ func (c *Client) FetchPDF(url string, overrideOptions *PdfOptions) ([]byte, erro
 	return decoded, nil
 }
 
+// FetchPlainText is a convenience method that returns the raw text context of the page, stripped of all HTML tags.
+// Useful for feeding lightweight text into LLM pipelines or doing semantic analysis.
+func (c *Client) FetchPlainText(url string) (string, error) {
+	req := &PageRequest{
+		URL:        url,
+		RenderType: "plainText",
+	}
+
+	res, err := c.DoPage(req)
+	if err != nil {
+		return "", err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return "", errors.New("no page response returned")
+	}
+
+	return res.PageResponses[0].Content, nil
+}
+
 // FetchScreenshot is a convenience method that returns the raw base64-decoded image bytes.
 func (c *Client) FetchScreenshot(url string, renderType string, renderSettings *RenderSettings) ([]byte, error) {
 	if renderType != "png" && renderType != "jpeg" {

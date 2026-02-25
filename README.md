@@ -4,7 +4,7 @@
 
 ## Features
 
-- **Rapid Convenience Fetchers**: Directly extract final decoded `[]byte` payloads for PDFs and Images via `FetchPDF()` and `FetchScreenshot()` without unpacking complicated JSON wrappers.
+- **Rapid Convenience Fetchers**: Directly extract final payloads for PDFs, Images, and PlainText via `FetchPDF()`, `FetchScreenshot()`, and `FetchPlainText()` without unpacking complicated JSON wrappers.
 - **Full API Coverage**: Strongly-typed Go structs for all major PhantomJsCloud parameters including `PageRequest`, `RequestSettings`, `RenderSettings`, and more.
 - **Automation API Builder**: A fluent `OverseerScriptBuilder` to dynamically generate complex automation scripts (clicking, typing, waiting for selectors, evaluating JavaScript) without manually concatenating strings. Use `FetchWithAutomation()` to extract native structured script results directly.
 - **Smart Waits & Performance**: easily configure `doneWhen` events, `waitInterval: 0`, and `ResourceModifier` rules to speed up your scraping operations.
@@ -35,6 +35,12 @@ import (
 func main() {
     client := phantomjscloud.NewClient("") // demo key
     
+    // Fetch purely the stripped text of a webpage (Great for LLMs!)
+    text, err := client.FetchPlainText("https://example.com")
+    if err == nil {
+        log.Println(text)
+    }
+
     // Fetch a base64-decoded PDF instantly
     pdfBytes, err := client.FetchPDF("https://example.com", nil)
     if err != nil {
