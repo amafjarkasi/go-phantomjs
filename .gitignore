@@ -28,3 +28,4 @@ node_modules/
 package-lock.json
 
 # Generated file — rebuild with: node scripts/gen_stealth.js
+ext/stealth/evasions.js
