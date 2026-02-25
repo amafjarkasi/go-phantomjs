@@ -2,7 +2,9 @@ package phantomjscloud
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,6 +90,94 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 	}
 
 	return result, nil
+}
+
+// FetchPDF is a convenience method that returns the raw base64-decoded PDF bytes for a given URL.
+// It simplifies generating PDFs directly without handling the raw JSON wrapper.
+func (c *Client) FetchPDF(url string, overrideOptions *PdfOptions) ([]byte, error) {
+	req := &PageRequest{
+		URL:        url,
+		RenderType: "pdf",
+	}
+
+	if overrideOptions != nil {
+		req.RenderSettings = RenderSettings{
+			PdfOptions: overrideOptions,
+		}
+	}
+
+	res, err := c.DoPage(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return nil, errors.New("no page response returned")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return decoded, nil
+}
+
+// FetchScreenshot is a convenience method that returns the raw base64-decoded image bytes.
+func (c *Client) FetchScreenshot(url string, renderType string, renderSettings *RenderSettings) ([]byte, error) {
+	if renderType != "png" && renderType != "jpeg" {
+		renderType = "png"
+	}
+
+	req := &PageRequest{
+		URL:        url,
+		RenderType: renderType,
+	}
+
+	if renderSettings != nil {
+		req.RenderSettings = *renderSettings
+	}
+
+	res, err := c.DoPage(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return nil, errors.New("no page response returned")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return decoded, nil
+}
+
+// FetchWithAutomation executes a built overseasScript and automatically extracts the underlying arbitrary automationResult payload.
+func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder) (interface{}, error) {
+	req := &PageRequest{
+		URL:            url,
+		RenderType:     "automation",
+		OverseerScript: builder.Build(),
+		OutputAsJson:   true,
+	}
+
+	res, err := c.DoPage(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return nil, errors.New("no page response returned")
+	}
+
+	if res.PageResponses[0].AutomationResult != nil {
+		return res.PageResponses[0].AutomationResult, nil
+	}
+
+	return nil, errors.New("automation result was omitted or empty in response")
 }
 
 // parseMetadata extracts specific pjsc headers

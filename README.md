@@ -4,8 +4,9 @@
 
 ## Features
 
+- **Rapid Convenience Fetchers**: Directly extract final decoded `[]byte` payloads for PDFs and Images via `FetchPDF()` and `FetchScreenshot()` without unpacking complicated JSON wrappers.
 - **Full API Coverage**: Strongly-typed Go structs for all major PhantomJsCloud parameters including `PageRequest`, `RequestSettings`, `RenderSettings`, and more.
-- **Automation API Builder**: A fluent `OverseerScriptBuilder` to dynamically generate complex automation scripts (clicking, typing, waiting for selectors, evaluating JavaScript) without manually concatenating strings.
+- **Automation API Builder**: A fluent `OverseerScriptBuilder` to dynamically generate complex automation scripts (clicking, typing, waiting for selectors, evaluating JavaScript) without manually concatenating strings. Use `FetchWithAutomation()` to extract native structured script results directly.
 - **Smart Waits & Performance**: easily configure `doneWhen` events, `waitInterval: 0`, and `ResourceModifier` rules to speed up your scraping operations.
 - **Response Metadata**: Automatically parses `pjsc-*` HTTP headers into a structured `ResponseMetadata` object to track billing costs, status codes, and done events.
 - **Seamless Proxy Support**: Use predefined proxy constants (e.g., `phantomjscloud.ProxyAnonUS`, `phantomjscloud.ProxyGeoUK`) or supply your own strings.
@@ -18,7 +19,45 @@ go get github.com/jbdt/go-phantomjs
 
 ## Quick Start
 
-### Basic HTML Extraction
+### Convenience Fetchers (PDFs, Images, Scripts)
+
+If you don't care about the full API metadata, you can use the built in convenience fetchers:
+
+```go
+package main
+
+import (
+ "os"
+ "log"
+ "github.com/jbdt/go-phantomjs"
+)
+
+func main() {
+    client := phantomjscloud.NewClient("") // demo key
+    
+    // Fetch a base64-decoded PDF instantly
+    pdfBytes, err := client.FetchPDF("https://example.com", nil)
+    if err != nil {
+        log.Fatalf("Error: %v", err)
+    }
+    os.WriteFile("output.pdf", pdfBytes, 0644)
+    
+    // Evaluate a script block and cleanly parse exactly what it returns
+    builder := phantomjscloud.NewOverseerScriptBuilder().
+        WaitForNavigation().
+        Evaluate("() => { return { title: document.title }; }")
+        
+    result, err := client.FetchWithAutomation("https://example.com", builder)
+    if err != nil {
+        log.Fatalf("Error: %v", err)
+    }
+    
+    // Prints map[title:Example Domain]
+    log.Println(result) 
+}
+```
+
+### Advanced HTML Extraction
 
 ```go
 package main
