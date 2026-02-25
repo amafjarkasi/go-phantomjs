@@ -1,0 +1,70 @@
+=== RUN   TestClient_Do
+--- PASS: TestClient_Do (0.00s)
+=== RUN   TestParseMetadata
+--- PASS: TestParseMetadata (0.00s)
+=== RUN   TestOverseerScriptBuilder
+    client_test.go:159: Builder output mismatch.
+        Expected:
+        await page.goto('http://example.com');
+        await page.addScriptTag({url: 'http://example.com/script.js'});
+        await page.evaluate(() => { return 'done'; });
+        await page.waitForSelector('body');
+        await page.hover('button#menu');
+        await page.focus('input#name');
+        await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, 'input#name');
+        await page.type('input#name', 'test user',{delay:100});
+        await page.select('select#country', 'US', 'UK');
+        await page.keyboard.press('Enter');
+        await page.waitForDelay(2000);
+        await page.evaluate((x, y) => { window.scrollBy(x, y); }, 0, 500);
+        await page.reload();
+        await page.addStyleTag({content: `body { background: red; }`});
+        await page.setViewport({width: 1920, height: 1080});
+        await page.waitForFunction(window.ready === true);
+        await page.setCookie({name: 'session', value: '123', domain: 'example.com'});
+        await page.deleteCookie({name: 'old', url: 'example.com'});
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.mouse.move(100, 200);
+        await page.mouse.click(300, 400);
+        await page.setUserAgent('MyAgent');
+        await page.setExtraHTTPHeaders({'Authorization': 'Bearer token'});
+        await page.waitForXPath('//div[@id=\'test\']');
+        page.manualWait();
+        page.render.content();
+        await page.render.screenshot();
+        page.done();
+        
+        Got:
+        await page.goto('http://example.com');
+        await page.addScriptTag({url: 'http://example.com/script.js'});
+        await page.evaluate(() => { return 'done'; });
+        await page.waitForSelector('body');
+        await page.hover('button#menu');
+        await page.focus('input#name');
+        await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, 'input#name');
+        await page.type('input#name', 'test user',{delay:100});
+        await page.select('select#country', 'US', 'UK');
+        await page.keyboard.press('Enter');
+        await page.waitForDelay(2000);
+        await page.evaluate((x, y) => { window.scrollBy(x, y); }, 0, 500);
+        await page.reload();
+        await page.addStyleTag({content: `body { background: red; }`});
+        await page.setViewport({width: 1920, height: 1080});
+        await page.waitForFunction(window.ready === true);
+        await page.setCookie({name: 'session', value: '123', domain: 'example.com'});
+        await page.deleteCookie({name: 'old', url: 'example.com'});
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.mouse.move(100, 200);
+        await page.mouse.click(300, 400);
+        await page.setUserAgent('MyAgent');
+        await page.setExtraHTTPHeaders({'Authorization': 'Bearer token'});
+        await page.waitForXPath('//div[@id='test']');
+        page.manualWait();
+        page.render.content();
+        await page.render.screenshot();
+        page.done();
+--- FAIL: TestOverseerScriptBuilder (0.00s)
+FAIL
+FAIL	github.com/jbdt/go-phantomjs	0.676s
+?   	github.com/jbdt/go-phantomjs/example	[no test files]
+FAIL

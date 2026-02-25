@@ -72,3 +72,17 @@ Generating PDFs correctly from a browser engine requires intricate tweaks to tri
 
 * **Discovery**: The `PdfOptions` interface contains specific nuances beyond just margins. Properties like `omitBackground` (forcing PDFs to render transparent/removed background graphics), `preferCSSPageSize` (forcing the PDF to adhere to the webpage's `@page` CSS rule if defined), and `onepageFudgeFactor` (fixing standard bugs when converting entire continuous scroll pages into single-page PDFs).
 * **Actionable Implementation**: Updated the struct to strictly map `OmitBackground`, `PreferCSSPageSize`, `OnepageFudgeFactor`, and explicitly supported integer timeouts overrides just for the PDF rendering phase itself.
+
+## 11. Automating Bot-Evasion (Puppeteer Stealth Concepts)
+
+When navigating restricted platforms (like LinkedIn or Cloudflare-protected sites), basic headless configurations often trigger captchas.
+
+* **Discovery**: Unlike pure Node.js environments where you can inject `puppeteer-extra-plugin-stealth` *before* the browser launches, PhantomJsCloud handles the browser context natively. However, by leveraging our `OverseerScriptBuilder` functions like `SetUserAgent`, `SetExtraHTTPHeaders`, and `DeleteCookie`, we can effectively mimic heavy evasion techniques dynamically inside the cloud container. Also, injecting `Raw` evaluation scripts modifying `navigator.webdriver` assists in masking the headless state.
+* **Actionable Implementation**: We appended heavy-duty interaction features like `MouseMove`, `MouseClickPosition` (bypassing DOM event listeners and triggering OS-level coordinates), `ScrollToBottom`, and `SetUserAgent`. These natively mimic human interactions commonly used by stealth scraping frameworks directly via PhantomJSCloud's Chrome Debug protocol translation.
+
+## 12. Complete Proxy Datacenter Geolocation List
+
+Standard documentation hinted at a handful of built-in proxies, but reading raw interface dumps (`/examples/helpers/proxy-builtin-locations`) revealed a massive global network.
+
+* **Discovery**: PhantomJsCloud inherently supports a massive list of built-in datacenter exits spanning nearly two dozen countries implicitly formatted as two-letter country codes in their `ProxyBuiltin` objects (e.g., `"sg"` for Singapore, `"ie"` for Ireland, etc.).
+* **Actionable Implementation**: Scraped the definitive list of backend keys and generated native Golang constants (`ProxyLocationUS`, `ProxyLocationDE`, `ProxyLocationAE`, etc.) mapping to every single built-in geo-routing target. This saves developers from guessing API string formatting or referencing external charts.

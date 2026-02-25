@@ -114,6 +114,12 @@ func TestOverseerScriptBuilder(t *testing.T) {
 		WaitForFunction("window.ready === true").
 		SetCookie("session", "123", "example.com").
 		DeleteCookie("old", "example.com").
+		ScrollToBottom().
+		MouseMove(100, 200).
+		MouseClickPosition(300, 400).
+		SetUserAgent("MyAgent").
+		SetExtraHTTPHeaders(map[string]string{"Authorization": "Bearer token"}).
+		WaitForXPath("//div[@id='test']").
 		ManualWait().
 		RenderContent().
 		RenderScreenshot(true).
@@ -138,6 +144,12 @@ func TestOverseerScriptBuilder(t *testing.T) {
 		"await page.waitForFunction(window.ready === true);\n" +
 		"await page.setCookie({name: 'session', value: '123', domain: 'example.com'});\n" +
 		"await page.deleteCookie({name: 'old', url: 'example.com'});\n" +
+		"await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));\n" +
+		"await page.mouse.move(100, 200);\n" +
+		"await page.mouse.click(300, 400);\n" +
+		"await page.setUserAgent('MyAgent');\n" +
+		"await page.setExtraHTTPHeaders({'Authorization': 'Bearer token'});\n" +
+		"await page.waitForXPath(\"//div[@id='test']\");\n" +
 		"page.manualWait();\n" +
 		"page.render.content();\n" +
 		"await page.render.screenshot();\n" +

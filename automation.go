@@ -198,6 +198,12 @@ func (b *OverseerScriptBuilder) ScrollBy(x, y int) *OverseerScriptBuilder {
 	return b
 }
 
+// ScrollToBottom scrolls the entire page to the absolute bottom perfectly matching document limits. Ideal for infinite scrolling loaders.
+func (b *OverseerScriptBuilder) ScrollToBottom() *OverseerScriptBuilder {
+	b.script += "await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));\n"
+	return b
+}
+
 // AddStyleTag injects custom CSS into the page.
 func (b *OverseerScriptBuilder) AddStyleTag(cssContent string) *OverseerScriptBuilder {
 	b.script += "await page.addStyleTag({content: `" + cssContent + "`});\n"
@@ -207,6 +213,28 @@ func (b *OverseerScriptBuilder) AddStyleTag(cssContent string) *OverseerScriptBu
 // SetViewport dynamically overrides the browser viewport mid-script.
 func (b *OverseerScriptBuilder) SetViewport(width, height int) *OverseerScriptBuilder {
 	b.script += "await page.setViewport({width: " + strconv.Itoa(width) + ", height: " + strconv.Itoa(height) + "});\n"
+	return b
+}
+
+// SetUserAgent dynamically overrides the browser user agent natively mid-script.
+func (b *OverseerScriptBuilder) SetUserAgent(userAgent string) *OverseerScriptBuilder {
+	b.script += "await page.setUserAgent('" + userAgent + "');\n"
+	return b
+}
+
+// SetExtraHTTPHeaders dynamically injects new global headers into the underlying browser mid-script.
+// Input map is converted natively to a JSON object payload.
+func (b *OverseerScriptBuilder) SetExtraHTTPHeaders(headers map[string]string) *OverseerScriptBuilder {
+	b.script += "await page.setExtraHTTPHeaders({"
+	first := true
+	for k, v := range headers {
+		if !first {
+			b.script += ", "
+		}
+		b.script += "'" + k + "': '" + v + "'"
+		first = false
+	}
+	b.script += "});\n"
 	return b
 }
 
@@ -225,6 +253,24 @@ func (b *OverseerScriptBuilder) SetCookie(name, value, domain string) *OverseerS
 // DeleteCookie removes a specific cookie from the browser context.
 func (b *OverseerScriptBuilder) DeleteCookie(name, url string) *OverseerScriptBuilder {
 	b.script += "await page.deleteCookie({name: '" + name + "', url: '" + url + "'});\n"
+	return b
+}
+
+// MouseMove simulates moving the mouse cursor to a specific absolute X,Y coordinate.
+func (b *OverseerScriptBuilder) MouseMove(x, y int) *OverseerScriptBuilder {
+	b.script += "await page.mouse.move(" + strconv.Itoa(x) + ", " + strconv.Itoa(y) + ");\n"
+	return b
+}
+
+// MouseClickPosition simulates a native operating system level mouse click on a specific absolute X,Y coordinate rather than relying on DOM targeting.
+func (b *OverseerScriptBuilder) MouseClickPosition(x, y int) *OverseerScriptBuilder {
+	b.script += "await page.mouse.click(" + strconv.Itoa(x) + ", " + strconv.Itoa(y) + ");\n"
+	return b
+}
+
+// WaitForXPath explicitly waits for a specific XPath block to render into the DOM.
+func (b *OverseerScriptBuilder) WaitForXPath(xpath string) *OverseerScriptBuilder {
+	b.script += "await page.waitForXPath(\"" + xpath + "\");\n"
 	return b
 }
 

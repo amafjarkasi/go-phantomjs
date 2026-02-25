@@ -163,6 +163,11 @@ The `OverseerScriptBuilder` supports nearly all primary PhantomJsCloud automatio
   Type("input#search", "hello world", 100). 
   Select("select#country", "US", "UK"). // Support for array Multi-select!
   KeyboardPress("Enter", 1).   // Send keystrokes natively
+  ScrollToBottom().            // Perfectly reach the bottom of infinite containers
+  MouseMove(100, 200).         // OS-level cursor targeting
+  MouseClickPosition(300,400). // OS-level coordinate clicks bypassing DOM events
+  SetUserAgent("MyAgent").     // Stealth spoofing
+  SetExtraHTTPHeaders(map[string]string{"Auth": "Bearer token"}). // Spoof headers
   SetCookie("session", "abc", "example.com"). // Drop cookies directly
   AddStyleTag("body { background: red; }"). // Inject styles
   SetViewport(1920, 1080).     // Dynamically override bounds
