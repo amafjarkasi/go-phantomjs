@@ -4,6 +4,7 @@
 
 ## Features
 
+- **`PageRequestBuilder`**: Fluent builder for `PageRequest` itself — composes `ext/` presets into a complete request without touching nested struct fields. Chain `WithRenderType`, `WithProxy`, `WithProfile`, `WithBlocklist`, `WithRenderSettings`, `WithViewport`, `WithOverseerScriptBuilder`, and more.
 - **Fluent Automation Builder**: `OverseerScriptBuilder` generates complex Puppeteer-style automation scripts without string concatenation — click, type, scroll, hover, inject scripts, evaluate JS, take mid-execution screenshots, and manage cookies and headers, all chainable.
 - **`FetchWithAutomation()`**: Execute a script and get the native structured return value from any `Evaluate()` call back as a parsed Go `any` — no JSON unwrapping required.
 - **Convenience Fetchers**: One-line helpers `FetchPlainText()`, `FetchPDF()`, and `FetchScreenshot()` skip the response envelope entirely, returning raw bytes ready to write to disk or feed into an LLM.
@@ -367,16 +368,13 @@ script := phantomjscloud.NewOverseerScriptBuilder().
   WaitForDelay(1500).
   Build()
 
-req := &phantomjscloud.PageRequest{
-  URL:            "about:blank",
-  RenderType:     "jpeg",
-  OverseerScript: script,
-  RequestSettings: phantomjscloud.RequestSettings{
-    UserAgent:        profile.UserAgent,
-    CustomHeaders:    profile.Headers,
-    ResourceModifier: blocklist.Lightweight(), // Block ads + trackers + fonts
-  },
-}
+// PageRequestBuilder composes the full request without struct literals
+req := phantomjscloud.NewPageRequestBuilder("https://about:blank").
+  WithRenderType("jpeg").
+  WithProfile(profile).
+  WithBlocklist(blocklist.Lightweight()).
+  WithOverseerScript(script).
+  Build()
 ```
 
 ### Advanced Automation Workflows
@@ -530,7 +528,8 @@ To extract cookies, headers, and extensive metadata, use `OutputAsJson: true` an
 
 ```
 go-phantomjs/
-├── automation.go        # OverseerScriptBuilder — ApplyStealth, UseProfile, ApplyViewport
+├── automation.go        # OverseerScriptBuilder — ApplyStealth, UseProfile, ApplyViewport, ClickAndWaitForNavigation
+├── builder.go           # PageRequestBuilder — fluent PageRequest composition from ext/ presets
 ├── client.go            # API client, Do/DoPage, FetchWithAutomation, response metadata
 ├── types.go             # PhantomJsCloud JSON type mappings
 ├── client_test.go       # Unit tests
@@ -560,6 +559,7 @@ go-phantomjs/
 │   └── main.go          # Stealth scrape, auto-login, OG thumbnail examples
 │
 ├── .golangci.yml        # golangci-lint config (errcheck, staticcheck, govet, misspell)
+├── CHANGELOG.md         # Keep a Changelog — full history from v0.1.0
 └── package.json         # npm deps for code-gen only (private, not published)
 ```
 
