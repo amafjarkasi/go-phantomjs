@@ -75,6 +75,12 @@ func (b *OverseerScriptBuilder) WaitForNavigation() *OverseerScriptBuilder {
 	return b
 }
 
+// WaitForNavigationEvent waits for a specific page load event (e.g., 'domcontentloaded', 'networkidle0').
+func (b *OverseerScriptBuilder) WaitForNavigationEvent(event string) *OverseerScriptBuilder {
+	b.script += "await page.waitForNavigation('" + event + "');\n"
+	return b
+}
+
 // WaitForSelector waits for an element to appear in the DOM.
 func (b *OverseerScriptBuilder) WaitForSelector(selector string) *OverseerScriptBuilder {
 	b.script += "await page.waitForSelector('" + selector + "');\n"

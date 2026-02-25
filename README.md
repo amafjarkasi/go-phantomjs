@@ -176,6 +176,46 @@ The `OverseerScriptBuilder` supports nearly all primary PhantomJsCloud automatio
   Build()
 ```
 
+### Advanced Automation Workflows
+
+#### Auto-Login & Navigation
+
+You can seamlessly automate filling out authentication forms, clicking submit, and waiting for the backend to redirect your headless browser securely.
+
+```go
+ script := phantomjscloud.NewOverseerScriptBuilder().
+  Type("input#username", "USER@EXAMPLE.COM", 50).
+  Type("input#password", "PASSWORD", 50).
+  Click("button[type=submit]").
+  WaitForNavigation(). // Wait for the form submission to redirect the page
+  Build()
+
+ req := &phantomjscloud.PageRequest{
+  URL:            "https://www.linkedin.com/uas/login",
+  RenderType:     "jpeg",
+  OverseerScript: script,
+ }
+```
+
+#### Speeding up Long Requests (DOM Content Loaded)
+
+If a page has heavy ad trackers or infinite lazy loading, `PhantomJsCloud` might timeout waiting for the network idle state. You can override this to finish rendering as soon as the DOM is available or use `DoneWhen` in `RequestSettings`.
+
+```go
+ // Method 1: Inject a manual wait and exit specifically on the domcontentloaded event
+ script := phantomjscloud.NewOverseerScriptBuilder().
+  WaitForNavigationEvent("domcontentloaded").
+  Done().
+  Build()
+
+ // Method 2: Configure it declaratively in RequestSettings natively
+ reqSettings := phantomjscloud.RequestSettings{
+  DoneWhen: []phantomjscloud.DoneWhen{
+   {Event: "domReady"},
+  },
+ }
+```
+
 ### Advanced Features
 
 #### Emulate Print Media for PDF Generation
