@@ -120,6 +120,13 @@ func (b *PageRequestBuilder) WithDoneWhen(events []DoneWhen) *PageRequestBuilder
 	return b
 }
 
+// WithRecordResourceBody sets whether to capture the response bodies of resources.
+// Use "network" to capture network activity.
+func (b *PageRequestBuilder) WithRecordResourceBody(val string) *PageRequestBuilder {
+	b.req.RequestSettings.RecordResourceBody = val
+	return b
+}
+
 // WithWaitInterval sets the milliseconds to wait after the page fires its done event.
 func (b *PageRequestBuilder) WithWaitInterval(ms int) *PageRequestBuilder {
 	b.req.RequestSettings.WaitInterval = ms
