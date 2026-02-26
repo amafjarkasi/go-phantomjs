@@ -134,3 +134,13 @@ func TestPageRequestBuilder_Build_ReturnsValueCopy(t *testing.T) {
 		t.Errorf("Build() should return an independent copy; got %q", req2.RenderType)
 	}
 }
+
+func TestPageRequestBuilder_WithRecordResourceBody(t *testing.T) {
+	req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+		WithRecordResourceBody("network").
+		Build()
+
+	if req.RequestSettings.RecordResourceBody != "network" {
+		t.Errorf("expected RecordResourceBody 'network', got %q", req.RequestSettings.RecordResourceBody)
+	}
+}
