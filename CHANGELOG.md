@@ -5,30 +5,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.2.0] — 2026-02-25
-
-### Added
-
-#### Core
-
-- `OverseerScriptBuilder.DragAndDrop(source, target)` — support for drag and drop interactions.
-- `OverseerScriptBuilder.WaitForUrl(urlFragment)` — waits until the page URL contains the specified fragment.
-- `OverseerScriptBuilder.GoBack()` / `GoForward()` — history navigation support.
-
-#### `ext/useragents`
-
-- Added missing Profile constructors:
-  - `FirefoxMacProfile()`
-  - `SafariMacProfile()`, `SafariIPadProfile()`, `SafariIPhoneProfile()`
-  - `EdgeWindowsProfile()`
-  - `ChromeAndroidProfile()`, `ChromeAndroidTabletProfile()`
-
-### Fixed
-
-- **Critical**: `ext/stealth/evasions.js` is no longer ignored by git. This fixes `go get` failures for library consumers.
-
----
-
 ## [0.1.0] — 2026-02-25
 
 ### Added
@@ -84,5 +60,4 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-[0.2.0]: https://github.com/amafjarkasi/go-phantomjs/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/amafjarkasi/go-phantomjs/releases/tag/v0.1.0
