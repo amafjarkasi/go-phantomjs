@@ -46,16 +46,12 @@ type Client struct {
 }
 
 // NewClient creates a new Client using the provided API key.
-// Passing an empty string will use the demo key "a-demo-key-with-low-quota-per-ip-address" (not recommended for production).
-// Use functional options to customise the underlying HTTP client:
+// The API key is required; without it, requests will fail.
 //
 //	client := phantomjscloud.NewClient("YOUR_KEY",
 //	    phantomjscloud.WithTimeout(60*time.Second),
 //	)
 func NewClient(apiKey string, opts ...ClientOption) *Client {
-	if apiKey == "" {
-		apiKey = "a-demo-key-with-low-quota-per-ip-address"
-	}
 	c := &Client{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
@@ -93,7 +89,11 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 
 // DoContext is like Do but honours the provided context for cancellation and deadlines.
 func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
-	endpoint := c.endpoint + c.apiKey + "/"
+	if c.apiKey == "" {
+		return nil, errors.New("API key is required")
+	}
+
+	endpoint := baseEndpointUrl + c.apiKey + "/"
 
 	// Use io.Pipe to stream the request body instead of buffering it all in memory.
 	pr, pw := io.Pipe()

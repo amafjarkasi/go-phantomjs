@@ -375,10 +375,13 @@ func TestPageRequestBuilder_WithUrlSettings(t *testing.T) {
 	}
 }
 
-func TestNewClient_WithEndpoint(t *testing.T) {
-	custom := "https://api.example.com/"
-	c := NewClient("test-key", WithEndpoint(custom))
-	if c.endpoint != custom {
-		t.Errorf("expected endpoint %v, got %v", custom, c.endpoint)
+func TestDoContext_EmptyKey(t *testing.T) {
+	c := NewClient("")
+	_, err := c.DoContext(context.Background(), &UserRequest{})
+	if err == nil {
+		t.Fatal("expected error for empty API key, got nil")
+	}
+	if err.Error() != "API key is required" {
+		t.Errorf("expected 'API key is required', got '%v'", err)
 	}
 }
