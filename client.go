@@ -1,7 +1,6 @@
 package phantomjscloud
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -29,6 +28,12 @@ func WithHTTPClient(hc *http.Client) ClientOption {
 
 // WithTimeout sets the HTTP timeout for all requests.
 // Default is 120s (PhantomJsCloud renders can be slow on complex pages).
+// WithEndpoint allows overriding the default API endpoint.
+// This is useful for testing or if you need to use a proxy.
+func WithEndpoint(url string) ClientOption {
+	return func(c *Client) { c.endpoint = url }
+}
+
 func WithTimeout(d time.Duration) ClientOption {
 	return func(c *Client) { c.httpClient.Timeout = d }
 }
@@ -36,6 +41,7 @@ func WithTimeout(d time.Duration) ClientOption {
 // Client is a PhantomJsCloud API client.
 type Client struct {
 	apiKey     string
+	endpoint   string
 	httpClient *http.Client
 }
 
@@ -49,6 +55,7 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 	c := &Client{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
+		endpoint:   baseEndpointUrl,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -88,13 +95,18 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 
 	endpoint := baseEndpointUrl + c.apiKey + "/"
 
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
+	// Use io.Pipe to stream the request body instead of buffering it all in memory.
+	pr, pw := io.Pipe()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(payload))
+	// Encode JSON in a goroutine
+	go func() {
+		err := json.NewEncoder(pw).Encode(req)
+		pw.CloseWithError(err)
+	}()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
 	if err != nil {
+		pr.CloseWithError(err)
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 
@@ -102,6 +114,7 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		pr.CloseWithError(err)
 		return nil, fmt.Errorf("http request failed: %w", err)
 	}
 	defer httpResp.Body.Close()

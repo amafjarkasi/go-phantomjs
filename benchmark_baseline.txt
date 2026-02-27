@@ -1,0 +1,1 @@
+BenchmarkClient_Do-4   	      25	  43633967 ns/op	21449414 B/op	     156 allocs/op
