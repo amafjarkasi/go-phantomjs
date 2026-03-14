@@ -93,7 +93,7 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 		return nil, errors.New("API key is required")
 	}
 
-	endpoint := baseEndpointUrl + c.apiKey + "/"
+	endpoint := c.endpoint + c.apiKey + "/"
 
 	// Use io.Pipe to stream the request body instead of buffering it all in memory.
 	pr, pw := io.Pipe()
