@@ -385,3 +385,74 @@ func TestDoContext_EmptyKey(t *testing.T) {
 		t.Errorf("expected 'API key is required', got '%v'", err)
 	}
 }
+
+func TestConvenienceMethods(t *testing.T) {
+	content := "Hello World"
+	encodedContent := "SGVsbG8gV29ybGQ="
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ur UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		resp := UserResponse{
+			Status: "success",
+			PageResponses: []PageResponse{
+				{Content: encodedContent},
+			},
+		}
+
+		// Plain text doesn't use base64 decoding in the client
+		if ur.Pages[0].RenderType == "plainText" {
+			resp.PageResponses[0].Content = content
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mockServer.Close()
+
+	client := NewClient("test-key", WithEndpoint(mockServer.URL+"/"))
+
+	t.Run("FetchPDF", func(t *testing.T) {
+		res, err := client.FetchPDF("http://example.com", nil)
+		if err != nil {
+			t.Fatalf("FetchPDF failed: %v", err)
+		}
+		if string(res) != content {
+			t.Errorf("Expected %q, got %q", content, string(res))
+		}
+	})
+
+	t.Run("FetchScreenshot", func(t *testing.T) {
+		res, err := client.FetchScreenshot("http://example.com", "png", nil)
+		if err != nil {
+			t.Fatalf("FetchScreenshot failed: %v", err)
+		}
+		if string(res) != content {
+			t.Errorf("Expected %q, got %q", content, string(res))
+		}
+	})
+
+	t.Run("FetchPlainText", func(t *testing.T) {
+		res, err := client.FetchPlainText("http://example.com")
+		if err != nil {
+			t.Fatalf("FetchPlainText failed: %v", err)
+		}
+		if res != content {
+			t.Errorf("Expected %q, got %q", content, res)
+		}
+	})
+
+	t.Run("RenderRawHTML", func(t *testing.T) {
+		res, err := client.RenderRawHTML("<html></html>", "png", nil)
+		if err != nil {
+			t.Fatalf("RenderRawHTML failed: %v", err)
+		}
+		if string(res) != content {
+			t.Errorf("Expected %q, got %q", content, string(res))
+		}
+	})
+}

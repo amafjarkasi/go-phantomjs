@@ -93,7 +93,7 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 		return nil, errors.New("API key is required")
 	}
 
-	endpoint := baseEndpointUrl + c.apiKey + "/"
+	endpoint := c.endpoint + c.apiKey + "/"
 
 	// Use io.Pipe to stream the request body instead of buffering it all in memory.
 	pr, pw := io.Pipe()
@@ -154,21 +154,7 @@ func (c *Client) FetchPDF(url string, overrideOptions *PdfOptions) ([]byte, erro
 		}
 	}
 
-	res, err := c.DoPage(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res.PageResponses) == 0 {
-		return nil, errors.New("no page response returned")
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
-	}
-
-	return decoded, nil
+	return c.doPageAndDecode(req)
 }
 
 // FetchPlainText is a convenience method that returns the raw text context of the page, stripped of all HTML tags.
@@ -206,21 +192,7 @@ func (c *Client) FetchScreenshot(url string, renderType string, renderSettings *
 		req.RenderSettings = *renderSettings
 	}
 
-	res, err := c.DoPage(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res.PageResponses) == 0 {
-		return nil, errors.New("no page response returned")
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
-	}
-
-	return decoded, nil
+	return c.doPageAndDecode(req)
 }
 
 // RenderRawHTML allows you to upload raw dynamic string HTML and render it natively through PhantomJS
@@ -242,21 +214,7 @@ func (c *Client) RenderRawHTML(html string, renderType string, renderSettings *R
 		req.RenderSettings = *renderSettings
 	}
 
-	res, err := c.DoPage(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res.PageResponses) == 0 {
-		return nil, errors.New("no page response returned")
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
-	}
-
-	return decoded, nil
+	return c.doPageAndDecode(req)
 }
 
 // FetchWithAutomation executes a built overseerScript and automatically extracts the underlying arbitrary automationResult payload.
@@ -282,6 +240,24 @@ func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder)
 	}
 
 	return nil, errors.New("automation result was omitted or empty in response")
+}
+
+func (c *Client) doPageAndDecode(req *PageRequest) ([]byte, error) {
+	res, err := c.DoPage(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.PageResponses) == 0 {
+		return nil, errors.New("no page response returned")
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(res.PageResponses[0].Content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 content: %w", err)
+	}
+
+	return decoded, nil
 }
 
 // parseMetadata extracts specific pjsc headers
