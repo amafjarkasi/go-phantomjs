@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
 	"github.com/amafjarkasi/go-phantomjs/ext/scraper"
 	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
-	"github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
 
 func main() {

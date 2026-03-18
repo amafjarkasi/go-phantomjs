@@ -39,7 +39,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		_, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
 		var result []byte
