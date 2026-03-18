@@ -459,7 +459,124 @@ func (b *OverseerScriptBuilder) GoForward() *OverseerScriptBuilder {
 	return b
 }
 
-// Build returns the finalized script.
+// Extract provides a declarative way to scrape structured data from the DOM.
+// Results are merged into a global result object.
+func (b *OverseerScriptBuilder) Extract(schema map[string]string) *OverseerScriptBuilder {
+	b.script.WriteString("await page.evaluate((s) => {\n")
+	b.script.WriteString("  window.__pjsc_result = window.__pjsc_result || {};\n")
+	b.script.WriteString("  for (const [key, selector] of Object.entries(s)) {\n")
+	b.script.WriteString("    const el = document.querySelector(selector);\n")
+	b.script.WriteString("    window.__pjsc_result[key] = el ? el.innerText.trim() : null;\n")
+	b.script.WriteString("  }\n")
+	b.script.WriteString("}, ")
+	raw, _ := json.Marshal(schema)
+	b.script.Write(raw)
+	b.script.WriteString(");\n")
+	return b
+}
+
+// ExtractLinks captures all absolute URLs and stores them in the 'links' key of the result.
+func (b *OverseerScriptBuilder) ExtractLinks() *OverseerScriptBuilder {
+	b.script.WriteString("await page.evaluate(() => {\n")
+	b.script.WriteString("  window.__pjsc_result = window.__pjsc_result || {};\n")
+	b.script.WriteString("  window.__pjsc_result.links = Array.from(document.querySelectorAll('a[href]')).map(a => a.href);\n")
+	b.script.WriteString("});\n")
+	return b
+}
+
+// ExtractMetaTags captures all <meta> tags and stores them in the 'meta' key of the result.
+func (b *OverseerScriptBuilder) ExtractMetaTags() *OverseerScriptBuilder {
+	b.script.WriteString("await page.evaluate(() => {\n")
+	b.script.WriteString("  window.__pjsc_result = window.__pjsc_result || {};\n")
+	b.script.WriteString("  const meta = {};\n")
+	b.script.WriteString("  document.querySelectorAll('meta').forEach(m => {\n")
+	b.script.WriteString("    const key = m.getAttribute('name') || m.getAttribute('property');\n")
+	b.script.WriteString("    if (key) meta[key] = m.getAttribute('content');\n")
+	b.script.WriteString("  });\n")
+	b.script.WriteString("  window.__pjsc_result.meta = meta;\n")
+	b.script.WriteString("});\n")
+	return b
+}
+
+// WaitUntilURL waits until the current page URL matches the provided regular expression.
+func (b *OverseerScriptBuilder) WaitUntilURL(regex string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.waitForFunction((r) => new RegExp(r).test(window.location.href), {}, %q);\n", regex)
+	return b
+}
+
+// WaitUntilCondition pauses execution until the provided Javascript condition evaluates to true.
+func (b *OverseerScriptBuilder) WaitUntilCondition(jsCondition string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.waitForFunction(() => %s);\n", jsCondition)
+	return b
+}
+
+// WaitUntilVisible waits for an element to be visible in the viewport.
+func (b *OverseerScriptBuilder) WaitUntilVisible(selector string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.waitForFunction((s) => {\n"+
+		"  const el = document.querySelector(s);\n"+
+		"  if (!el) return false;\n"+
+		"  const style = window.getComputedStyle(el);\n"+
+		"  return style && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';\n"+
+		"}, {}, %q);\n", selector)
+	return b
+}
+
+// WaitUntilHidden waits for an element to be removed from the DOM or hidden via CSS.
+func (b *OverseerScriptBuilder) WaitUntilHidden(selector string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.waitForFunction((s) => {\n"+
+		"  const el = document.querySelector(s);\n"+
+		"  if (!el) return true;\n"+
+		"  const style = window.getComputedStyle(el);\n"+
+		"  return !style || style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';\n"+
+		"}, {}, %q);\n", selector)
+	return b
+}
+
+// ClickByText clicks the first element that contains the specified text.
+func (b *OverseerScriptBuilder) ClickByText(text string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.evaluate((t) => {\n"+
+		"  const xpath = `//*[contains(text(),'${t}')]`;\n"+
+		"  const matchingElement = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;\n"+
+		"  if (matchingElement) matchingElement.click();\n"+
+		"}, %q);\n", text)
+	return b
+}
+
+// ScrollToElement scrolls the page until the specified element is in view.
+func (b *OverseerScriptBuilder) ScrollToElement(selector string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.evaluate((s) => {\n"+
+		"  const el = document.querySelector(s);\n"+
+		"  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });\n"+
+		"}, %q);\n", selector)
+	return b
+}
+
+// HighlightElement draws a red border around an element — useful for debugging screenshots.
+func (b *OverseerScriptBuilder) HighlightElement(selector string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.evaluate((s) => {\n"+
+		"  const el = document.querySelector(s);\n"+
+		"  if (el) el.style.border = '5px solid red';\n"+
+		"}, %q);\n", selector)
+	return b
+}
+
+// SelectByLabel selects a dropdown option based on its visible label text.
+func (b *OverseerScriptBuilder) SelectByLabel(selector, label string) *OverseerScriptBuilder {
+	fmt.Fprintf(&b.script, "await page.evaluate((s, l) => {\n"+
+		"  const select = document.querySelector(s);\n"+
+		"  if (!select) return;\n"+
+		"  const option = Array.from(select.options).find(o => o.text === l);\n"+
+		"  if (option) { select.value = option.value; select.dispatchEvent(new Event('change')); }\n"+
+		"}, %q, %q);\n", selector, label)
+	return b
+}
+
+// Build returns the finalized script. If extraction methods were used,
+// it ensures the aggregated result is returned.
 func (b *OverseerScriptBuilder) Build() string {
-	return b.script.String()
+	s := b.script.String()
+	if strings.Contains(s, "__pjsc_result") {
+		s += "window.__pjsc_result;\n"
+	}
+	return s
 }

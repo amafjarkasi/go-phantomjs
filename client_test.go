@@ -62,12 +62,20 @@ func TestClient_Do(t *testing.T) {
 
 func TestParseMetadata(t *testing.T) {
 	headers := http.Header{}
+	headers.Set("Pjsc-Response-Status", "success")
+	headers.Set("Pjsc-Billing-Cost-Credits", "1.50")
 	headers.Set("pjsc-billing-credit-cost", "2.25")
 	headers.Set("pjsc-content-status-code", "201")
 	headers.Set("pjsc-content-done-when", "load")
 
 	meta := parseMetadata(headers)
 
+	if meta.Status != "success" {
+		t.Errorf("Expected success, got %s", meta.Status)
+	}
+	if meta.BillingCostCredits != 1.50 {
+		t.Errorf("Expected 1.50, got %f", meta.BillingCostCredits)
+	}
 	if meta.BillingCreditCost != 2.25 {
 		t.Errorf("Expected 2.25, got %f", meta.BillingCreditCost)
 	}
@@ -76,6 +84,46 @@ func TestParseMetadata(t *testing.T) {
 	}
 	if meta.ContentDoneWhen != "load" {
 		t.Errorf("Expected load, got %s", meta.ContentDoneWhen)
+	}
+}
+
+func TestParseMetadata_EmptyHeaders(t *testing.T) {
+	headers := http.Header{}
+	meta := parseMetadata(headers)
+
+	if meta.Status != "" {
+		t.Errorf("Expected empty status, got %s", meta.Status)
+	}
+	if meta.BillingCostCredits != 0 {
+		t.Errorf("Expected 0 billing cost credits, got %f", meta.BillingCostCredits)
+	}
+	if meta.BillingCreditCost != 0 {
+		t.Errorf("Expected 0 billing cost, got %f", meta.BillingCreditCost)
+	}
+	if meta.ContentStatusCode != 0 {
+		t.Errorf("Expected 0 status code, got %d", meta.ContentStatusCode)
+	}
+	if meta.ContentDoneWhen != "" {
+		t.Errorf("Expected empty DoneWhen, got %s", meta.ContentDoneWhen)
+	}
+}
+
+func TestParseMetadata_InvalidValues(t *testing.T) {
+	headers := http.Header{}
+	headers.Set("Pjsc-Billing-Cost-Credits", "invalid")
+	headers.Set("pjsc-billing-credit-cost", "invalid-float")
+	headers.Set("pjsc-content-status-code", "invalid-int")
+
+	meta := parseMetadata(headers)
+
+	if meta.BillingCostCredits != 0 {
+		t.Errorf("Expected 0 billing cost credits for invalid input, got %f", meta.BillingCostCredits)
+	}
+	if meta.BillingCreditCost != 0 {
+		t.Errorf("Expected 0 billing cost for invalid input, got %f", meta.BillingCreditCost)
+	}
+	if meta.ContentStatusCode != 0 {
+		t.Errorf("Expected 0 status code for invalid input, got %d", meta.ContentStatusCode)
 	}
 }
 

@@ -1,15 +1,21 @@
 package phantomjscloud
 
 import (
+	"bytes"
 	"context"
+	"net"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
 )
 
 const (
@@ -19,6 +25,25 @@ const (
 
 // ClientOption is a functional option for configuring a Client.
 type ClientOption func(*Client)
+
+// RetryConfig defines the strategy for automatic retries on transient errors.
+type RetryConfig struct {
+	MaxRetries      int
+	InitialInterval time.Duration
+	Multiplier      float64
+	MaxInterval     time.Duration
+}
+
+// DefaultRetryConfig provides a sensible default for most use cases.
+var DefaultRetryConfig = RetryConfig{
+	MaxRetries:      3,
+	InitialInterval: 1 * time.Second,
+	Multiplier:      2.0,
+	MaxInterval:     10 * time.Second,
+}
+
+// Interceptor allows modifying requests before they are sent or responses after they are received.
+type Interceptor func(req *http.Request, next func(*http.Request) (*http.Response, error)) (*http.Response, error)
 
 // WithHTTPClient replaces the default HTTP client.
 // Use this to set a custom transport, proxy, or TLS config.
@@ -38,11 +63,51 @@ func WithTimeout(d time.Duration) ClientOption {
 	return func(c *Client) { c.httpClient.Timeout = d }
 }
 
+// WithRetry enables automatic retries for transient errors (429, 503, timeouts).
+func WithRetry(cfg RetryConfig) ClientOption {
+	return func(c *Client) { c.retryConfig = &cfg }
+}
+
+// WithInterceptor adds a middleware that can inspect/modify requests and responses.
+func WithInterceptor(i Interceptor) ClientOption {
+	return func(c *Client) { c.interceptors = append(c.interceptors, i) }
+}
+
+// WithProxyProvider enables dynamic proxy selection for all requests.
+func WithProxyProvider(p proxy.ProxyProvider) ClientOption {
+	return func(c *Client) { c.proxyProvider = p }
+}
+
+// WithLogger sets the logger for the client.
+func WithLogger(l *slog.Logger) ClientOption {
+	return func(c *Client) { c.logger = l }
+}
+
+// LoggingInterceptor returns a pre-built interceptor that logs request details.
+func LoggingInterceptor(logger *slog.Logger) Interceptor {
+	return func(req *http.Request, next func(*http.Request) (*http.Response, error)) (*http.Response, error) {
+		start := time.Now()
+		resp, err := next(req)
+		duration := time.Since(start)
+
+		if err != nil {
+			logger.Error("pjsc request failed", "method", req.Method, "url", req.URL, "duration", duration, "error", err)
+		} else {
+			logger.Info("pjsc request completed", "method", req.Method, "url", req.URL, "status", resp.StatusCode, "duration", duration)
+		}
+		return resp, err
+	}
+}
+
 // Client is a PhantomJsCloud API client.
 type Client struct {
-	apiKey     string
-	endpoint   string
-	httpClient *http.Client
+	apiKey        string
+	endpoint      string
+	httpClient    *http.Client
+	retryConfig   *RetryConfig
+	interceptors  []Interceptor
+	proxyProvider proxy.ProxyProvider
+	logger        *slog.Logger
 }
 
 // NewClient creates a new Client using the provided API key.
@@ -56,6 +121,7 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 		endpoint:   baseEndpointUrl,
+		logger:     slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -88,33 +154,83 @@ func (c *Client) Do(req *UserRequest) (*UserResponseWithMeta, error) {
 }
 
 // DoContext is like Do but honours the provided context for cancellation and deadlines.
+// It automatically handles retries if WithRetry was used during client initialization.
 func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
 	if c.apiKey == "" {
 		return nil, errors.New("API key is required")
 	}
 
-	endpoint := baseEndpointUrl + c.apiKey + "/"
+	if c.retryConfig == nil {
+		return c.doSingle(ctx, req)
+	}
 
-	// Use io.Pipe to stream the request body instead of buffering it all in memory.
-	pr, pw := io.Pipe()
+	var lastErr error
+	cfg := c.retryConfig
+	interval := cfg.InitialInterval
 
-	// Encode JSON in a goroutine
-	go func() {
-		err := json.NewEncoder(pw).Encode(req)
-		pw.CloseWithError(err)
-	}()
+	for attempt := 0; attempt <= cfg.MaxRetries; attempt++ {
+		res, err := c.doSingle(ctx, req)
+		if err == nil {
+			return res, nil
+		}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
+		lastErr = err
+
+		// Only retry on transient errors (429, 503, or network/timeout)
+		if !isRetryable(err) || attempt == cfg.MaxRetries {
+			break
+		}
+
+		// Backoff
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(interval):
+			interval = time.Duration(float64(interval) * cfg.Multiplier)
+			if interval > cfg.MaxInterval {
+				interval = cfg.MaxInterval
+			}
+		}
+	}
+
+	return nil, lastErr
+}
+
+func (c *Client) doSingle(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
+	// Apply dynamic proxy if configured
+	if c.proxyProvider != nil && req.Proxy == nil {
+		req.Proxy = c.proxyProvider.GetProxy()
+	}
+
+	endpoint := c.endpoint + c.apiKey + "/"
+
+	// Since we might retry, we can't use io.Pipe easily if we want to avoid double encoding,
+	// but for now, simple encoding into a buffer is safer for retries.
+	// In the future, we could optimize this.
+	body, err := json.Marshal(req)
 	if err != nil {
-		pr.CloseWithError(err)
+		return nil, fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
 		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	httpResp, err := c.httpClient.Do(httpReq)
+	// Apply interceptors
+	httpClientDo := c.httpClient.Do
+	for i := len(c.interceptors) - 1; i >= 0; i-- {
+		interceptor := c.interceptors[i]
+		currentDo := httpClientDo
+		httpClientDo = func(r *http.Request) (*http.Response, error) {
+			return interceptor(r, currentDo)
+		}
+	}
+
+	httpResp, err := httpClientDo(httpReq)
 	if err != nil {
-		pr.CloseWithError(err)
 		return nil, fmt.Errorf("http request failed: %w", err)
 	}
 	defer httpResp.Body.Close()
@@ -124,7 +240,9 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body: %w", err)
 		}
-		return nil, fmt.Errorf("phantomjscloud returned HTTP Status %d: %s", httpResp.StatusCode, string(bodyBytes))
+		err = fmt.Errorf("phantomjscloud returned HTTP Status %d: %s", httpResp.StatusCode, string(bodyBytes))
+		// Wrap with status code for retry logic
+		return nil, &httpError{StatusCode: httpResp.StatusCode, Err: err}
 	}
 
 	var userResp UserResponse
@@ -132,12 +250,44 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 		return nil, fmt.Errorf("failed to decode response payload: %w", err)
 	}
 
-	result := &UserResponseWithMeta{
+	return &UserResponseWithMeta{
 		UserResponse: userResp,
 		Metadata:     parseMetadata(httpResp.Header),
+	}, nil
+}
+
+type httpError struct {
+	StatusCode int
+	Err        error
+}
+
+func (e *httpError) Error() string { return e.Err.Error() }
+func (e *httpError) Unwrap() error { return e.Err }
+
+func isRetryable(err error) bool {
+	// Check for HTTP-level errors
+	var hErr *httpError
+	if errors.As(err, &hErr) {
+		// 429 Too Many Requests, 503 Service Unavailable, 504 Gateway Timeout
+		return hErr.StatusCode == 429 || hErr.StatusCode == 503 || hErr.StatusCode == 504
 	}
 
-	return result, nil
+	// Check for network-level errors
+	var nErr net.Error
+	if errors.As(err, &nErr) {
+		return nErr.Timeout() || nErr.Temporary()
+	}
+
+	// Context cancellation/deadline
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	// Fallback string matching for other common connection issues
+	errStr := err.Error()
+	return strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "reset by peer") ||
+		strings.Contains(errStr, "EOF")
 }
 
 // FetchPDF is a convenience method that returns the raw base64-decoded PDF bytes for a given URL.
@@ -284,9 +434,16 @@ func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder)
 	return nil, errors.New("automation result was omitted or empty in response")
 }
 
-// parseMetadata extracts specific pjsc headers
+// parseMetadata extracts PJSC specific headers from the response.
 func parseMetadata(headers http.Header) ResponseMetadata {
 	meta := ResponseMetadata{}
+
+	if val := headers.Get("Pjsc-Response-Status"); val != "" {
+		meta.Status = val
+	}
+	if val := headers.Get("Pjsc-Billing-Cost-Credits"); val != "" {
+		meta.BillingCostCredits, _ = strconv.ParseFloat(val, 64)
+	}
 
 	if costStr := headers.Get("pjsc-billing-credit-cost"); costStr != "" {
 		if cost, err := strconv.ParseFloat(costStr, 64); err == nil {

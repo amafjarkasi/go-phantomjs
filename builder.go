@@ -1,6 +1,9 @@
 package phantomjscloud
 
-import "github.com/amafjarkasi/go-phantomjs/ext/useragents"
+import (
+	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
+	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
+)
 
 // PageRequestBuilder constructs a PageRequest using a fluent API.
 // It is the recommended way to compose requests from ext/ presets without
@@ -54,6 +57,12 @@ func (b *PageRequestBuilder) WithOutputAsJson(v bool) *PageRequestBuilder {
 // Accepts the same types as PageRequest.Proxy.
 func (b *PageRequestBuilder) WithProxy(proxy interface{}) *PageRequestBuilder {
 	b.req.Proxy = proxy
+	return b
+}
+
+// WithProxyProvider sets a dynamic proxy provider for this request.
+func (b *PageRequestBuilder) WithProxyProvider(p proxy.ProxyProvider) *PageRequestBuilder {
+	b.req.Proxy = p.GetProxy()
 	return b
 }
 

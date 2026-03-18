@@ -1,5 +1,11 @@
 package phantomjscloud
 
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
 // UserRequest represents the root POST payload (IUserRequest).
 // PhantomJsCloud accepts either a raw PageRequest, or a UserRequest containing multiple pages.
 type UserRequest struct {
@@ -226,6 +232,37 @@ type PageResponse struct {
 	Resources        []interface{}          `json:"resources,omitempty"`
 }
 
+// IsSuccess returns true if the HTTP status code is in the 2xx range.
+func (p *PageResponse) IsSuccess() bool {
+	return p.StatusCode >= 200 && p.StatusCode < 300
+}
+
+// GetContent returns the captured HTML or text content.
+func (p *PageResponse) GetContent() string {
+	return p.Content
+}
+
+// GetError returns a combined error string if any errors occurred during the page render.
+func (p *PageResponse) GetError() string {
+	if len(p.Errors) == 0 && len(p.ContentErrors) == 0 {
+		return ""
+	}
+	all := append(p.Errors, p.ContentErrors...)
+	return "page errors: " + strings.Join(all, "; ")
+}
+
+// GetAutomationResultAs unmarshals the AutomationResult interface into the provided target variable.
+func (p *PageResponse) GetAutomationResultAs(v interface{}) error {
+	if p.AutomationResult == nil {
+		return fmt.Errorf("automation result is nil")
+	}
+	b, err := json.Marshal(p.AutomationResult)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
+}
+
 type Metrics struct {
 	WaitInterval       int              `json:"waitInterval"`
 	BillingRenderMs    int              `json:"billingRenderMs"`
@@ -264,7 +301,9 @@ type FrameData struct {
 // Client Meta Response Headers
 // PJSC Headers are returned in the HTTP Response Headers, which we'll parse.
 type ResponseMetadata struct {
-	BillingCreditCost float64
-	ContentStatusCode int
-	ContentDoneWhen   string
+	Status             string
+	BillingCostCredits float64
+	BillingCreditCost  float64
+	ContentStatusCode  int
+	ContentDoneWhen    string
 }

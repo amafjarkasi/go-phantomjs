@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"log/slog"
+	"net/http"
 	"os"
+	"time"
 
 	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
 	"github.com/amafjarkasi/go-phantomjs/ext/blocklist"
+	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
+	"github.com/amafjarkasi/go-phantomjs/ext/scraper"
 	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 	"github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
@@ -16,84 +22,73 @@ func main() {
 	if apiKey == "" {
 		log.Fatal("PHANTOMJSCLOUD_API_KEY environment variable is required")
 	}
-	client := phantomjscloud.NewClient(apiKey)
 
-	// ── Example A: Full Stealth Scrape ───────────────────────────────────────
-	// Chrome/Windows fingerprint + stealth evasions + lightweight blocklist.
-	// Use this as the starting point for any site with bot detection.
-	fmt.Println("=== Example A: Full stealth scrape ===")
+	// ── 1. Advanced Client with Rotation & Logging ───────────────────────────
+	fmt.Println("=== 1. Advanced Client Setup ===")
 
-	profile := useragents.ChromeWindowsProfile()
-	stealthScript := phantomjscloud.NewOverseerScriptBuilder().
-		UseProfile(profile).                  // Set realistic UA + headers
-		ApplyStealth().                       // Inject 14 fingerprint evasions
-		ApplyViewport(viewport.FHD.Viewport). // 1920x1080 desktop
-		Goto("https://bot.sannysoft.com").
-		WaitForDelay(1500).
-		RenderScreenshot(true).
+	// Round-robin proxy rotation pool
+	proxies := proxy.NewRotatingProxyProvider(
+		phantomjscloud.ProxyAnonUS,
+		phantomjscloud.ProxyAnonDE,
+	)
+
+	client := phantomjscloud.NewClient(apiKey,
+		phantomjscloud.WithRetry(phantomjscloud.DefaultRetryConfig),
+		phantomjscloud.WithProxyProvider(proxies),
+		phantomjscloud.WithLogger(slog.Default()),
+		phantomjscloud.WithInterceptor(phantomjscloud.LoggingInterceptor(slog.Default())),
+	)
+
+	// ── 2. Declarative Data Extraction ───────────────────────────────────────
+	fmt.Println("\n=== 2. Declarative Data Extraction ===")
+
+	extractScript := phantomjscloud.NewOverseerScriptBuilder().
+		Goto("https://news.ycombinator.com").
+		WaitUntilVisible(".hnname").
+		Extract(map[string]string{
+			"site_name":   ".hnname",
+			"first_story": ".titleline > a",
+		}).
+		ExtractLinks().
+		ExtractMetaTags().
 		Build()
 
-	stealthReq := phantomjscloud.NewPageRequestBuilder("about:blank").
-		WithRenderType("jpeg").
-		WithProfile(profile).
-		WithBlocklist(blocklist.Lightweight()). // block ads + trackers + fonts
-		WithOverseerScript(stealthScript).
+	req := phantomjscloud.NewPageRequestBuilder("about:blank").
+		WithOverseerScript(extractScript).
 		Build()
-	resp, err := client.DoPage(stealthReq)
+
+	resp, err := client.DoPage(req)
 	if err != nil {
-		log.Printf("Example A error: %v\n", err)
+		log.Printf("Extraction error: %v\n", err)
 	} else {
-		fmt.Printf("Example A: status=%s  cost=%.4f credits\n",
-			resp.Status, resp.Metadata.BillingCreditCost)
+		var data struct {
+			SiteName   string `json:"site_name"`
+			FirstStory string `json:"first_story"`
+		}
+		// Using new type-safe extraction helper
+		if err := resp.PageResponses[0].GetAutomationResultAs(&data); err == nil {
+			fmt.Printf("Extracted: Site=%s, First Story=%s\n", data.SiteName, data.FirstStory)
+		}
 	}
 
-	// ── Example B: Auto-Login ────────────────────────────────────────────────
-	// Type credentials, submit, and wait for the backend redirect.
-	// ClickAndWaitForNavigation avoids the race condition between click and load.
-	fmt.Println("\n=== Example B: Auto-login (demo — not a real site) ===")
+	// ── 3. High-Level Batch Scraper ──────────────────────────────────────────
+	fmt.Println("\n=== 3. High-Level Batch Scraper ===")
 
-	loginScript := phantomjscloud.NewOverseerScriptBuilder().
-		WaitForSelector("input#username").
-		ClearInput("input#username").
-		Type("input#username", "user@example.com", 60).
-		ClearInput("input#password").
-		Type("input#password", "s3cr3t", 60).
-		ClickAndWaitForNavigation("button[type=submit]").
-		WaitForSelector(".dashboard-header").
-		RenderContent().
-		Done().
-		Build()
+	processor := scraper.NewBatchProcessor(client, 2, 5)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	fmt.Println("Login script:\n", loginScript)
+	results := processor.Scrape(ctx, []phantomjscloud.PageRequest{
+		*phantomjscloud.NewPageRequestBuilder("https://google.com").WithBlocklist(blocklist.Lightweight()).Build(),
+		*phantomjscloud.NewPageRequestBuilder("https://github.com").WithProfile(useragents.ChromeWindowsProfile()).Build(),
+	})
 
-	// Attach it to a real request like this:
-	_ = &phantomjscloud.PageRequest{
-		URL:            "https://example.com/login",
-		RenderType:     "plainText",
-		OverseerScript: loginScript,
-	}
-
-	// ── Example C: Open Graph Thumbnail (1200×630) ───────────────────────────
-	// Generate a social share image using the Thumbnail1200 viewport preset.
-	fmt.Println("\n=== Example C: Open Graph thumbnail (1200x630) ===")
-
-	thumbReq := &phantomjscloud.PageRequest{
-		URL:            "https://go.dev",
-		RenderType:     "jpeg",
-		RenderSettings: viewport.Thumbnail1200.AsRenderSettings(),
-		RequestSettings: phantomjscloud.RequestSettings{
-			ResourceModifier: blocklist.Fonts(), // block fonts for speed
-		},
-	}
-	thumbBytes, err := client.FetchScreenshot(thumbReq.URL, "jpeg", &thumbReq.RenderSettings)
-	if err != nil {
-		log.Printf("Example C error: %v\n", err)
-	} else {
-		path := "thumb.jpg"
-		if err := os.WriteFile(path, thumbBytes, 0o644); err != nil {
-			log.Printf("Example C write error: %v\n", err)
+	for res := range results {
+		if res.Error != nil {
+			fmt.Printf("Batch Error [%s]: %v\n", res.Request.URL, res.Error)
 		} else {
-			fmt.Printf("Example C: saved %d bytes → %s\n", len(thumbBytes), path)
+			fmt.Printf("Batch Success [%s]: %d bytes, success=%t\n",
+				res.Request.URL, len(res.Response.GetContent()), res.Response.IsSuccess())
 		}
 	}
 }
