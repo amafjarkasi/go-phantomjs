@@ -285,7 +285,9 @@ type FrameData struct {
 // Client Meta Response Headers
 // PJSC Headers are returned in the HTTP Response Headers, which we'll parse.
 type ResponseMetadata struct {
-	BillingCreditCost float64
-	ContentStatusCode int
-	ContentDoneWhen   string
+	Status             string
+	BillingCostCredits float64
+	BillingCreditCost  float64
+	ContentStatusCode  int
+	ContentDoneWhen    string
 }

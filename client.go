@@ -3,15 +3,19 @@ package phantomjscloud
 import (
 	"bytes"
 	"context"
+	"net"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
 )
 
 const (
@@ -89,6 +93,7 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 		endpoint:   baseEndpointUrl,
+		logger:     slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -384,9 +389,16 @@ func (c *Client) FetchWithAutomation(url string, builder *OverseerScriptBuilder)
 	return nil, errors.New("automation result was omitted or empty in response")
 }
 
-// parseMetadata extracts specific pjsc headers
+// parseMetadata extracts PJSC specific headers from the response.
 func parseMetadata(headers http.Header) ResponseMetadata {
 	meta := ResponseMetadata{}
+
+	if val := headers.Get("Pjsc-Response-Status"); val != "" {
+		meta.Status = val
+	}
+	if val := headers.Get("Pjsc-Billing-Cost-Credits"); val != "" {
+		meta.BillingCostCredits, _ = strconv.ParseFloat(val, 64)
+	}
 
 	if costStr := headers.Get("pjsc-billing-credit-cost"); costStr != "" {
 		if cost, err := strconv.ParseFloat(costStr, 64); err == nil {

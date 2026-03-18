@@ -12,7 +12,6 @@ import (
 	"github.com/amafjarkasi/go-phantomjs/ext/blocklist"
 	"github.com/amafjarkasi/go-phantomjs/ext/scraper"
 	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
-	"github.com/amafjarkasi/go-phantomjs/ext/viewport"
 )
 
 func main() {

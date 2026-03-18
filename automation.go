@@ -520,5 +520,9 @@ func (b *OverseerScriptBuilder) SelectByLabel(selector, label string) *OverseerS
 
 // Build returns the finalized script.
 func (b *OverseerScriptBuilder) Build() string {
-	return b.script.String()
+	s := b.script.String()
+	if strings.Contains(s, "__pjsc_result") {
+		s += "window.__pjsc_result;\n"
+	}
+	return s
 }

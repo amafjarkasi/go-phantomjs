@@ -62,12 +62,20 @@ func TestClient_Do(t *testing.T) {
 
 func TestParseMetadata(t *testing.T) {
 	headers := http.Header{}
+	headers.Set("Pjsc-Response-Status", "success")
+	headers.Set("Pjsc-Billing-Cost-Credits", "1.50")
 	headers.Set("pjsc-billing-credit-cost", "2.25")
 	headers.Set("pjsc-content-status-code", "201")
 	headers.Set("pjsc-content-done-when", "load")
 
 	meta := parseMetadata(headers)
 
+	if meta.Status != "success" {
+		t.Errorf("Expected success, got %s", meta.Status)
+	}
+	if meta.BillingCostCredits != 1.50 {
+		t.Errorf("Expected 1.50, got %f", meta.BillingCostCredits)
+	}
 	if meta.BillingCreditCost != 2.25 {
 		t.Errorf("Expected 2.25, got %f", meta.BillingCreditCost)
 	}
