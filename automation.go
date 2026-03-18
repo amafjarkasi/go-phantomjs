@@ -45,11 +45,16 @@ func NewOverseerScriptBuilder() *OverseerScriptBuilder {
 	return &OverseerScriptBuilder{}
 }
 
+func (b *OverseerScriptBuilder) writeJSString(s string) {
+	raw, _ := json.Marshal(s)
+	b.script.Write(raw)
+}
+
 // AddScriptTag injects an external script into the page.
 func (b *OverseerScriptBuilder) AddScriptTag(url string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.addScriptTag({url: '")
-	b.script.WriteString(url)
-	b.script.WriteString("'});\n")
+	b.script.WriteString("await page.addScriptTag({url: ")
+	b.writeJSString(url)
+	b.script.WriteString("});\n")
 	return b
 }
 
@@ -69,9 +74,9 @@ func (b *OverseerScriptBuilder) WaitForNavigation() *OverseerScriptBuilder {
 
 // WaitForNavigationEvent waits for a specific navigation event (load, domcontentloaded, networkidle0, networkidle2).
 func (b *OverseerScriptBuilder) WaitForNavigationEvent(event string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.waitForNavigation({waitUntil: '")
-	b.script.WriteString(event)
-	b.script.WriteString("'});\n")
+	b.script.WriteString("await page.waitForNavigation({waitUntil: ")
+	b.writeJSString(event)
+	b.script.WriteString("});\n")
 	return b
 }
 
@@ -92,17 +97,17 @@ func (b *OverseerScriptBuilder) WaitForNetworkIdle(idleConnections, idleMs int) 
 
 // WaitForSelector waits for an element to appear in the DOM.
 func (b *OverseerScriptBuilder) WaitForSelector(selector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.waitForSelector('")
-	b.script.WriteString(selector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.waitForSelector(")
+	b.writeJSString(selector)
+	b.script.WriteString(");\n")
 	return b
 }
 
 // Click clicks on an element matching the selector.
 func (b *OverseerScriptBuilder) Click(selector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.click('")
-	b.script.WriteString(selector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.click(")
+	b.writeJSString(selector)
+	b.script.WriteString(");\n")
 	return b
 }
 
@@ -111,25 +116,25 @@ func (b *OverseerScriptBuilder) Click(selector string) *OverseerScriptBuilder {
 func (b *OverseerScriptBuilder) ClickAndWaitForNavigation(selector string) *OverseerScriptBuilder {
 	b.script.WriteString("await Promise.all([\n")
 	b.script.WriteString("  page.waitForNavigation(),\n")
-	b.script.WriteString("  page.click('")
-	b.script.WriteString(selector)
-	b.script.WriteString("')\n")
+	b.script.WriteString("  page.click(")
+	b.writeJSString(selector)
+	b.script.WriteString(")\n")
 	b.script.WriteString("]);\n")
 	return b
 }
 
 // Type types text into an element.
 func (b *OverseerScriptBuilder) Type(selector, text string, delayMs int) *OverseerScriptBuilder {
-	b.script.WriteString("await page.type('")
-	b.script.WriteString(selector)
-	b.script.WriteString("', '")
-	b.script.WriteString(text)
+	b.script.WriteString("await page.type(")
+	b.writeJSString(selector)
+	b.script.WriteString(", ")
+	b.writeJSString(text)
 	if delayMs > 0 {
-		b.script.WriteString("',{delay:")
+		b.script.WriteString(",{delay:")
 		b.script.WriteString(strconv.Itoa(delayMs))
 		b.script.WriteString("});\n")
 	} else {
-		b.script.WriteString("');\n")
+		b.script.WriteString(");\n")
 	}
 	return b
 }
@@ -143,9 +148,9 @@ func (b *OverseerScriptBuilder) Raw(code string) *OverseerScriptBuilder {
 
 // Goto navigates to a URL and waits for the default load event.
 func (b *OverseerScriptBuilder) Goto(url string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.goto('")
-	b.script.WriteString(url)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.goto(")
+	b.writeJSString(url)
+	b.script.WriteString(");\n")
 	return b
 }
 
@@ -153,24 +158,24 @@ func (b *OverseerScriptBuilder) Goto(url string) *OverseerScriptBuilder {
 // Common values: "load", "domcontentloaded", "networkidle0", "networkidle2".
 // Prefer this over Goto + WaitForNavigationEvent for SPAs that fire no traditional load events.
 func (b *OverseerScriptBuilder) GotoWithWaitUntil(url, waitUntil string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.goto('")
-	b.script.WriteString(url)
-	b.script.WriteString("', {waitUntil: '")
-	b.script.WriteString(waitUntil)
-	b.script.WriteString("'});\n")
+	b.script.WriteString("await page.goto(")
+	b.writeJSString(url)
+	b.script.WriteString(", {waitUntil: ")
+	b.writeJSString(waitUntil)
+	b.script.WriteString("});\n")
 	return b
 }
 
 // KeyboardPress presses a specific key (e.g., 'Backspace', 'Enter') a certain number of times.
 func (b *OverseerScriptBuilder) KeyboardPress(key string, times int) *OverseerScriptBuilder {
 	if times <= 1 {
-		b.script.WriteString("await page.keyboard.press('")
-		b.script.WriteString(key)
-		b.script.WriteString("');\n")
+		b.script.WriteString("await page.keyboard.press(")
+		b.writeJSString(key)
+		b.script.WriteString(");\n")
 	} else {
-		b.script.WriteString("await page.keyboard.press('")
-		b.script.WriteString(key)
-		b.script.WriteString("', {times: ")
+		b.script.WriteString("await page.keyboard.press(")
+		b.writeJSString(key)
+		b.script.WriteString(", {times: ")
 		b.script.WriteString(strconv.Itoa(times))
 		b.script.WriteString("});\n")
 	}
@@ -215,33 +220,36 @@ func (b *OverseerScriptBuilder) Done() *OverseerScriptBuilder {
 
 // Hover simulates resting the mouse over an element.
 func (b *OverseerScriptBuilder) Hover(selector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.hover('")
-	b.script.WriteString(selector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.hover(")
+	b.writeJSString(selector)
+	b.script.WriteString(");\n")
 	return b
 }
 
 // Focus focuses on an element.
 func (b *OverseerScriptBuilder) Focus(selector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.focus('")
-	b.script.WriteString(selector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.focus(")
+	b.writeJSString(selector)
+	b.script.WriteString(");\n")
 	return b
 }
 
 // Select selects options in a dropdown.
 func (b *OverseerScriptBuilder) Select(selector string, values ...string) *OverseerScriptBuilder {
-	valStr := ""
-	for i, v := range values {
-		if i > 0 {
-			valStr += ", "
-		}
-		valStr += "'" + v + "'"
+	b.script.WriteString("await page.select(")
+	b.writeJSString(selector)
+	b.script.WriteString(", ")
+	raw, _ := json.Marshal(values)
+	// Remove brackets if we want a comma separated list of arguments,
+	// but page.select in Puppeteer takes (selector, ...values)
+	// wait, page.select(selector, ...values) means values are passed as separate arguments.
+	// The original code was: await page.select('selector', 'v1', 'v2');
+	// json.Marshal(values) gives ["v1", "v2"].
+	// We need to strip the brackets to get "v1", "v2"
+	valStr := string(raw)
+	if len(valStr) >= 2 {
+		b.script.WriteString(valStr[1 : len(valStr)-1])
 	}
-	b.script.WriteString("await page.select('")
-	b.script.WriteString(selector)
-	b.script.WriteString("', ")
-	b.script.WriteString(valStr)
 	b.script.WriteString(");\n")
 	return b
 }
@@ -254,9 +262,9 @@ func (b *OverseerScriptBuilder) Reload() *OverseerScriptBuilder {
 
 // ClearInput is a convenience method that manually clears a text field by evaluating Javascript.
 func (b *OverseerScriptBuilder) ClearInput(selector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, '")
-	b.script.WriteString(selector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, ")
+	b.writeJSString(selector)
+	b.script.WriteString(");\n")
 	return b
 }
 
@@ -278,9 +286,9 @@ func (b *OverseerScriptBuilder) ScrollToBottom() *OverseerScriptBuilder {
 
 // AddStyleTag injects custom CSS into the page.
 func (b *OverseerScriptBuilder) AddStyleTag(cssContent string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.addStyleTag({content: `")
-	b.script.WriteString(cssContent)
-	b.script.WriteString("`});\n")
+	b.script.WriteString("await page.addStyleTag({content: ")
+	b.writeJSString(cssContent)
+	b.script.WriteString("});\n")
 	return b
 }
 
@@ -296,29 +304,19 @@ func (b *OverseerScriptBuilder) SetViewport(width, height int) *OverseerScriptBu
 
 // SetUserAgent dynamically overrides the browser user agent natively mid-script.
 func (b *OverseerScriptBuilder) SetUserAgent(userAgent string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.setUserAgent('")
-	b.script.WriteString(userAgent)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.setUserAgent(")
+	b.writeJSString(userAgent)
+	b.script.WriteString(");\n")
 	return b
 }
 
 // SetExtraHTTPHeaders dynamically injects new global headers into the underlying browser mid-script.
 // Input map is converted natively to a JSON object payload.
 func (b *OverseerScriptBuilder) SetExtraHTTPHeaders(headers map[string]string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.setExtraHTTPHeaders({")
-	first := true
-	for k, v := range headers {
-		if !first {
-			b.script.WriteString(", ")
-		}
-		b.script.WriteString("'")
-		b.script.WriteString(k)
-		b.script.WriteString("': '")
-		b.script.WriteString(v)
-		b.script.WriteString("'")
-		first = false
-	}
-	b.script.WriteString("});\n")
+	b.script.WriteString("await page.setExtraHTTPHeaders(")
+	raw, _ := json.Marshal(headers)
+	b.script.Write(raw)
+	b.script.WriteString(");\n")
 	return b
 }
 
@@ -332,23 +330,23 @@ func (b *OverseerScriptBuilder) WaitForFunction(jsFunc string) *OverseerScriptBu
 
 // SetCookie adds a cookie directly into the browser context.
 func (b *OverseerScriptBuilder) SetCookie(name, value, domain string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.setCookie({name: '")
-	b.script.WriteString(name)
-	b.script.WriteString("', value: '")
-	b.script.WriteString(value)
-	b.script.WriteString("', domain: '")
-	b.script.WriteString(domain)
-	b.script.WriteString("'});\n")
+	b.script.WriteString("await page.setCookie({name: ")
+	b.writeJSString(name)
+	b.script.WriteString(", value: ")
+	b.writeJSString(value)
+	b.script.WriteString(", domain: ")
+	b.writeJSString(domain)
+	b.script.WriteString("});\n")
 	return b
 }
 
 // DeleteCookie removes a specific cookie from the browser context.
 func (b *OverseerScriptBuilder) DeleteCookie(name, url string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.deleteCookie({name: '")
-	b.script.WriteString(name)
-	b.script.WriteString("', url: '")
-	b.script.WriteString(url)
-	b.script.WriteString("'});\n")
+	b.script.WriteString("await page.deleteCookie({name: ")
+	b.writeJSString(name)
+	b.script.WriteString(", url: ")
+	b.writeJSString(url)
+	b.script.WriteString("});\n")
 	return b
 }
 
@@ -374,9 +372,9 @@ func (b *OverseerScriptBuilder) MouseClickPosition(x, y int) *OverseerScriptBuil
 
 // WaitForXPath explicitly waits for a specific XPath block to render into the DOM.
 func (b *OverseerScriptBuilder) WaitForXPath(xpath string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.waitForXPath(\"")
-	b.script.WriteString(xpath)
-	b.script.WriteString("\");\n")
+	b.script.WriteString("await page.waitForXPath(")
+	b.writeJSString(xpath)
+	b.script.WriteString(");\n")
 	return b
 }
 
@@ -431,19 +429,19 @@ func (b *OverseerScriptBuilder) ApplyViewport(v Viewport) *OverseerScriptBuilder
 
 // DragAndDrop simulates dragging an element from one selector to another.
 func (b *OverseerScriptBuilder) DragAndDrop(sourceSelector, targetSelector string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.dragAndDrop('")
-	b.script.WriteString(sourceSelector)
-	b.script.WriteString("', '")
-	b.script.WriteString(targetSelector)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.dragAndDrop(")
+	b.writeJSString(sourceSelector)
+	b.script.WriteString(", ")
+	b.writeJSString(targetSelector)
+	b.script.WriteString(");\n")
 	return b
 }
 
 // WaitForUrl waits until the page URL contains the specified string.
 func (b *OverseerScriptBuilder) WaitForUrl(urlFragment string) *OverseerScriptBuilder {
-	b.script.WriteString("await page.waitForFunction((url) => window.location.href.includes(url), {}, '")
-	b.script.WriteString(urlFragment)
-	b.script.WriteString("');\n")
+	b.script.WriteString("await page.waitForFunction((url) => window.location.href.includes(url), {}, ")
+	b.writeJSString(urlFragment)
+	b.script.WriteString(");\n")
 	return b
 }
 
