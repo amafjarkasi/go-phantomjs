@@ -79,6 +79,36 @@ func TestParseMetadata(t *testing.T) {
 	}
 }
 
+func TestParseMetadata_EmptyHeaders(t *testing.T) {
+	headers := http.Header{}
+	meta := parseMetadata(headers)
+
+	if meta.BillingCreditCost != 0 {
+		t.Errorf("Expected 0 billing cost, got %f", meta.BillingCreditCost)
+	}
+	if meta.ContentStatusCode != 0 {
+		t.Errorf("Expected 0 status code, got %d", meta.ContentStatusCode)
+	}
+	if meta.ContentDoneWhen != "" {
+		t.Errorf("Expected empty DoneWhen, got %s", meta.ContentDoneWhen)
+	}
+}
+
+func TestParseMetadata_InvalidValues(t *testing.T) {
+	headers := http.Header{}
+	headers.Set("pjsc-billing-credit-cost", "invalid-float")
+	headers.Set("pjsc-content-status-code", "invalid-int")
+
+	meta := parseMetadata(headers)
+
+	if meta.BillingCreditCost != 0 {
+		t.Errorf("Expected 0 billing cost for invalid input, got %f", meta.BillingCreditCost)
+	}
+	if meta.ContentStatusCode != 0 {
+		t.Errorf("Expected 0 status code for invalid input, got %d", meta.ContentStatusCode)
+	}
+}
+
 func TestFetchWithAutomation(t *testing.T) {
 	const wantScript = "await page.goto('https://example.com');\n"
 
