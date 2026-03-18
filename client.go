@@ -73,41 +73,13 @@ func WithInterceptor(i Interceptor) ClientOption {
 	return func(c *Client) { c.interceptors = append(c.interceptors, i) }
 }
 
-// WithProxyProvider enables dynamic proxy selection for all requests.
-func WithProxyProvider(p proxy.ProxyProvider) ClientOption {
-	return func(c *Client) { c.proxyProvider = p }
-}
-
-// WithLogger sets the logger for the client.
-func WithLogger(l *slog.Logger) ClientOption {
-	return func(c *Client) { c.logger = l }
-}
-
-// LoggingInterceptor returns a pre-built interceptor that logs request details.
-func LoggingInterceptor(logger *slog.Logger) Interceptor {
-	return func(req *http.Request, next func(*http.Request) (*http.Response, error)) (*http.Response, error) {
-		start := time.Now()
-		resp, err := next(req)
-		duration := time.Since(start)
-
-		if err != nil {
-			logger.Error("pjsc request failed", "method", req.Method, "url", req.URL, "duration", duration, "error", err)
-		} else {
-			logger.Info("pjsc request completed", "method", req.Method, "url", req.URL, "status", resp.StatusCode, "duration", duration)
-		}
-		return resp, err
-	}
-}
-
 // Client is a PhantomJsCloud API client.
 type Client struct {
-	apiKey        string
-	endpoint      string
-	httpClient    *http.Client
-	retryConfig   *RetryConfig
-	interceptors  []Interceptor
-	proxyProvider proxy.ProxyProvider
-	logger        *slog.Logger
+	apiKey       string
+	endpoint     string
+	httpClient   *http.Client
+	retryConfig  *RetryConfig
+	interceptors []Interceptor
 }
 
 // NewClient creates a new Client using the provided API key.
@@ -197,11 +169,6 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 }
 
 func (c *Client) doSingle(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
-	// Apply dynamic proxy if configured
-	if c.proxyProvider != nil && req.Proxy == nil {
-		req.Proxy = c.proxyProvider.GetProxy()
-	}
-
 	endpoint := c.endpoint + c.apiKey + "/"
 
 	// Since we might retry, we can't use io.Pipe easily if we want to avoid double encoding,
@@ -265,29 +232,17 @@ func (e *httpError) Error() string { return e.Err.Error() }
 func (e *httpError) Unwrap() error { return e.Err }
 
 func isRetryable(err error) bool {
-	// Check for HTTP-level errors
 	var hErr *httpError
 	if errors.As(err, &hErr) {
 		// 429 Too Many Requests, 503 Service Unavailable, 504 Gateway Timeout
 		return hErr.StatusCode == 429 || hErr.StatusCode == 503 || hErr.StatusCode == 504
 	}
-
-	// Check for network-level errors
-	var nErr net.Error
-	if errors.As(err, &nErr) {
-		return nErr.Timeout() || nErr.Temporary()
-	}
-
-	// Context cancellation/deadline
+	// Also retry on network timeouts or connection refused
 	if errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
-
-	// Fallback string matching for other common connection issues
 	errStr := err.Error()
-	return strings.Contains(errStr, "connection refused") ||
-		strings.Contains(errStr, "reset by peer") ||
-		strings.Contains(errStr, "EOF")
+	return strings.Contains(errStr, "timeout") || strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "reset by peer")
 }
 
 // FetchPDF is a convenience method that returns the raw base64-decoded PDF bytes for a given URL.

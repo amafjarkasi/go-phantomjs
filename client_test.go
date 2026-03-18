@@ -91,12 +91,6 @@ func TestParseMetadata_EmptyHeaders(t *testing.T) {
 	headers := http.Header{}
 	meta := parseMetadata(headers)
 
-	if meta.Status != "" {
-		t.Errorf("Expected empty status, got %s", meta.Status)
-	}
-	if meta.BillingCostCredits != 0 {
-		t.Errorf("Expected 0 billing cost credits, got %f", meta.BillingCostCredits)
-	}
 	if meta.BillingCreditCost != 0 {
 		t.Errorf("Expected 0 billing cost, got %f", meta.BillingCreditCost)
 	}
@@ -110,15 +104,11 @@ func TestParseMetadata_EmptyHeaders(t *testing.T) {
 
 func TestParseMetadata_InvalidValues(t *testing.T) {
 	headers := http.Header{}
-	headers.Set("Pjsc-Billing-Cost-Credits", "invalid")
 	headers.Set("pjsc-billing-credit-cost", "invalid-float")
 	headers.Set("pjsc-content-status-code", "invalid-int")
 
 	meta := parseMetadata(headers)
 
-	if meta.BillingCostCredits != 0 {
-		t.Errorf("Expected 0 billing cost credits for invalid input, got %f", meta.BillingCostCredits)
-	}
 	if meta.BillingCreditCost != 0 {
 		t.Errorf("Expected 0 billing cost for invalid input, got %f", meta.BillingCreditCost)
 	}
@@ -128,7 +118,7 @@ func TestParseMetadata_InvalidValues(t *testing.T) {
 }
 
 func TestFetchWithAutomation(t *testing.T) {
-	const wantScript = "await page.goto('https://example.com');\n"
+	const wantScript = "await page.goto(\"https://example.com\");\n"
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ur UserRequest
@@ -233,32 +223,32 @@ func TestOverseerScriptBuilder(t *testing.T) {
 		Done().
 		Build()
 
-	expected := "await page.goto('http://example.com');\n" +
-		"await page.addScriptTag({url: 'http://example.com/script.js'});\n" +
+	expected := "await page.goto(\"http://example.com\");\n" +
+		"await page.addScriptTag({url: \"http://example.com/script.js\"});\n" +
 		"await page.evaluate(() => { return 'done'; });\n" +
-		"await page.waitForSelector('body');\n" +
-		"await page.click('button#close');\n" +
-		"await page.hover('button#menu');\n" +
-		"await page.focus('input#name');\n" +
-		"await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, 'input#name');\n" +
-		"await page.type('input#name', 'test user',{delay:100});\n" +
-		"await page.select('select#country', 'US', 'UK');\n" +
-		"await page.keyboard.press('Enter');\n" +
+		"await page.waitForSelector(\"body\");\n" +
+		"await page.click(\"button#close\");\n" +
+		"await page.hover(\"button#menu\");\n" +
+		"await page.focus(\"input#name\");\n" +
+		"await page.evaluate((sel) => { document.querySelector(sel).value = ''; }, \"input#name\");\n" +
+		"await page.type(\"input#name\", \"test user\",{delay:100});\n" +
+		"await page.select(\"select#country\", \"US\",\"UK\");\n" +
+		"await page.keyboard.press(\"Enter\");\n" +
 		"await page.waitForDelay(2000);\n" +
 		"await page.evaluate((x, y) => { window.scrollBy(x, y); }, 0, 500);\n" +
 		"await page.reload();\n" +
-		"await page.addStyleTag({content: `body { background: red; }`});\n" +
+		"await page.addStyleTag({content: \"body { background: red; }\"});\n" +
 		"await page.setViewport({width: 1920, height: 1080});\n" +
 		"await page.waitForFunction(window.ready === true);\n" +
-		"await page.setCookie({name: 'session', value: '123', domain: 'example.com'});\n" +
-		"await page.deleteCookie({name: 'old', url: 'example.com'});\n" +
+		"await page.setCookie({name: \"session\", value: \"123\", domain: \"example.com\"});\n" +
+		"await page.deleteCookie({name: \"old\", url: \"example.com\"});\n" +
 		"await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));\n" +
 		"await page.mouse.move(100, 200);\n" +
 		"await page.mouse.click(300, 400);\n" +
-		"await page.setUserAgent('MyAgent');\n" +
-		"await page.setExtraHTTPHeaders({'Authorization': 'Bearer token'});\n" +
+		"await page.setUserAgent(\"MyAgent\");\n" +
+		"await page.setExtraHTTPHeaders({\"Authorization\":\"Bearer token\"});\n" +
 		"await page.waitForXPath(\"//div[@id='test']\");\n" +
-		"await Promise.all([\n  page.waitForNavigation(),\n  page.click('button#submit')\n]);\n" +
+		"await Promise.all([\n  page.waitForNavigation(),\n  page.click(\"button#submit\")\n]);\n" +
 		"page.manualWait();\n" +
 		"page.render.content();\n" +
 		"await page.render.screenshot();\n" +

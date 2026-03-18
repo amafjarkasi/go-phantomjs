@@ -1,10 +1,6 @@
 package phantomjscloud
 
-import (
-	"encoding/json"
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // UserRequest represents the root POST payload (IUserRequest).
 // PhantomJsCloud accepts either a raw PageRequest, or a UserRequest containing multiple pages.
@@ -249,18 +245,6 @@ func (p *PageResponse) GetError() string {
 	}
 	all := append(p.Errors, p.ContentErrors...)
 	return "page errors: " + strings.Join(all, "; ")
-}
-
-// GetAutomationResultAs unmarshals the AutomationResult interface into the provided target variable.
-func (p *PageResponse) GetAutomationResultAs(v interface{}) error {
-	if p.AutomationResult == nil {
-		return fmt.Errorf("automation result is nil")
-	}
-	b, err := json.Marshal(p.AutomationResult)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(b, v)
 }
 
 type Metrics struct {
