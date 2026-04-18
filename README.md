@@ -13,6 +13,10 @@
 
 - `Cookie.Expires` now uses `float64` to match real PhantomJsCloud payloads where `expires` can be non-integer.
 - `PageResponse.contentErrors` decoding now tolerates both string arrays and object arrays.
+- Page-level proxy options are normalized for API compatibility:
+  - `ProxyBuiltin{Location:"us"}` -> `"anon-us"`
+  - `ProxyOptions{Geolocation:"us"}` -> `"geo-us"`
+  - `ProxyOptions{Custom:{Host,Auth}}` -> `"custom-{host}:{auth}"`
 - Added regression tests for both response shapes in [`client_test.go`](client_test.go).
 - Validated live behavior against major retailer targets (including paginated/search URLs) without JSON unmarshal failures.
 
@@ -32,6 +36,11 @@
 - **Functional Client Options**: Configure the client with `WithTimeout(d)` or `WithHTTPClient(hc)` — bring your own transport, proxy, or TLS config without subclassing.
 - **Response Metadata**: Automatically parses `pjsc-*` response headers into a structured `ResponseMetadata` object — billing credit cost, content status code, and done-when event — attached to every response.
 - **Proxy Constants**: Named constants for every PhantomJsCloud proxy location (`ProxyAnonUS`, `ProxyGeoUK`, `ProxyGeoDE`, etc.) so you're never hardcoding location strings.
+- **Host-Aware Proxy Routing** (`ext/proxy`): Route proxies by hostname with round-robin pools and deterministic fallback selection per retry attempt (`GetProxyForURLAttempt`), inspired by proxy-router style workflows.
+- **Adaptive Block Policy Retries** (`ext/blockpolicy` + `ext/scraper`): Start with aggressive blocking to cut cost, then progressively relax (`aggressive` → `balanced` → `relaxed` → `off`) when a response appears challenge-blocked.
+- **Persona Engine** (`ext/persona`): Apply host-routed, attempt-aware request personas (proxy + profile + viewport + blockers) for cleaner anti-detection orchestration.
+- **Challenge Orchestration** (`ext/scraper`): One-call retries that combine adaptive block policy + persona routing + optional proxy routing + session cookie carryover.
+- **Session Persistence Hardening** (`ext/session`): Cookie store filters by host/scheme/expiry to avoid cross-site leakage while persisting challenge/session cookies between attempts.
 - **CI-Tested**: GitHub Actions runs `go vet`, `go test -race`, `go build`, and `golangci-lint` on every push. All packages have dedicated unit tests including race-detector coverage.
 
 ## Installation
@@ -315,6 +324,134 @@ req := &phantomjscloud.PageRequest{
 | `blocklist.Media()` | All image and video assets |
 | `blocklist.Lightweight()` | Ads + Trackers + Fonts _(recommended default)_ |
 | `blocklist.Full()` | Ads + Trackers + Fonts + Media |
+
+### Host-Aware Proxy Router (with Fallbacks)
+
+`ext/proxy` now includes a URL-aware host router for multi-proxy setups:
+
+```go
+import (
+  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+  "github.com/amafjarkasi/go-phantomjs/ext/proxy"
+)
+
+router := proxy.NewHostRouter(phantomjscloud.ProxyAnonUS). // default pool
+  RouteHost("amazon.com", phantomjscloud.ProxyGeoUS, phantomjscloud.ProxyGeoUSCA).
+  RouteHost("walmart.com", phantomjscloud.ProxyGeoUS)
+
+// Primary route selection (round-robin for host pool)
+req := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com").
+  WithProxyRouter(router).
+  Build()
+
+// Deterministic fallback for retry attempt #1
+retryReq := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com").
+  WithProxyRouterAttempt(router, 1).
+  Build()
+```
+
+### Adaptive Block Policy Retries
+
+For dynamic sites, start cheap and only relax resource blocking when needed:
+
+```go
+import (
+  "context"
+  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+  "github.com/amafjarkasi/go-phantomjs/ext/blockpolicy"
+  "github.com/amafjarkasi/go-phantomjs/ext/scraper"
+)
+
+baseReq := phantomjscloud.NewPageRequestBuilder("https://www.target.com/s?searchTerm=laptop&page=2").
+  WithRenderType("html").
+  WithOutputAsJson(true).
+  Build()
+
+resp, attempts, err := scraper.DoPageWithAdaptiveBlockPolicy(
+  context.Background(),
+  client,
+  baseReq,
+  blockpolicy.LevelAggressive, // starts with blocklist.Full()
+  3,                           // fallback levels on block/challenge
+)
+_ = resp
+_ = attempts
+_ = err
+```
+
+### One-Call Routing + Adaptive Policy
+
+If you want both host-aware proxy fallback and adaptive block-policy retries together:
+
+```go
+router := proxy.NewHostRouter(phantomjscloud.ProxyAnonUS).
+  RouteHost("amazon.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA).
+  RouteHost("walmart.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA)
+
+resp, attempts, err := scraper.DoPageWithRoutingAndAdaptivePolicy(
+  context.Background(),
+  client,
+  baseReq,
+  router,
+  blockpolicy.LevelAggressive,
+  3,
+)
+_ = resp
+_ = attempts
+_ = err
+```
+
+### Persona Engine + Challenge Orchestration
+
+Use `ext/persona` and `ext/session` with `ext/scraper` for one-call challenge handling:
+
+```go
+import (
+  "context"
+  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+  "github.com/amafjarkasi/go-phantomjs/ext/blockpolicy"
+  "github.com/amafjarkasi/go-phantomjs/ext/persona"
+  "github.com/amafjarkasi/go-phantomjs/ext/scraper"
+  "github.com/amafjarkasi/go-phantomjs/ext/session"
+  "github.com/amafjarkasi/go-phantomjs/ext/useragents"
+  "github.com/amafjarkasi/go-phantomjs/ext/viewport"
+)
+
+engine := persona.NewEngine().
+  Define("desktop-us", persona.Config{
+    Proxy:    phantomjscloud.ProxyAnonUS,
+    Profile:  useragents.ChromeWindowsProfile(),
+    Viewport: viewport.FHD,
+  }).
+  Define("mobile-ca", persona.Config{
+    Proxy:    phantomjscloud.ProxyAnonCA,
+    Profile:  useragents.FirefoxWindowsProfile(),
+    Viewport: viewport.MobilePortrait,
+  }).
+  RouteHost("amazon.com", "desktop-us", "mobile-ca").
+  SetDefault("desktop-us")
+
+store := session.NewStore()
+baseReq := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com/s?k=laptop&page=2").
+  WithRenderType("html").
+  WithOutputAsJson(true).
+  Build()
+
+resp, trace, err := scraper.DoPageWithChallengeOrchestration(
+  context.Background(),
+  client,
+  baseReq,
+  scraper.ChallengeOrchestrationOptions{
+    Persona:     engine,
+    Session:     store,
+    StartLevel:  blockpolicy.LevelAggressive,
+    MaxAttempts: 3,
+  },
+)
+_ = resp
+_ = trace
+_ = err
+```
 
 ### User Agents — Realistic Browser Profiles
 
@@ -602,6 +739,26 @@ go-phantomjs/
 │   ├── blocklist/       # Pre-built ResourceModifier URL blacklists
 │   │   ├── blocklist.go
 │   │   └── blocklist_test.go
+│   ├── blockpolicy/     # Adaptive block policy levels and block/challenge detection
+│   │   ├── blockpolicy.go
+│   │   └── blockpolicy_test.go
+│   ├── proxy/           # Proxy providers + host-aware proxy router
+│   │   ├── proxy.go
+│   │   ├── router.go
+│   │   └── router_test.go
+│   ├── persona/         # Host-routed request personas (proxy/profile/viewport/blockers)
+│   │   ├── engine.go
+│   │   └── engine_test.go
+│   ├── session/         # Cookie persistence store with host/scheme/expiry filtering
+│   │   ├── store.go
+│   │   └── store_test.go
+│   ├── scraper/         # Higher-level retry/orchestration helpers
+│   │   ├── scraper.go
+│   │   ├── adaptive.go
+│   │   ├── challenge.go
+│   │   ├── scraper_test.go
+│   │   ├── adaptive_test.go
+│   │   └── challenge_test.go
 │   ├── useragents/      # Realistic browser UA strings and Profile bundles
 │   │   ├── useragents.go
 │   │   └── useragents_test.go

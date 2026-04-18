@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
+	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
 	"github.com/amafjarkasi/go-phantomjs/ext/useragents"
 )
 
@@ -142,5 +143,18 @@ func TestPageRequestBuilder_WithRecordResourceBody(t *testing.T) {
 
 	if req.RequestSettings.RecordResourceBody != "network" {
 		t.Errorf("expected RecordResourceBody 'network', got %q", req.RequestSettings.RecordResourceBody)
+	}
+}
+
+func TestPageRequestBuilder_WithProxyRouter(t *testing.T) {
+	router := proxy.NewHostRouter("default-proxy").
+		RouteHost("example.com", "proxy-a")
+
+	req := phantomjscloud.NewPageRequestBuilder("https://example.com/path").
+		WithProxyRouter(router).
+		Build()
+
+	if req.Proxy != "proxy-a" {
+		t.Errorf("expected host route proxy 'proxy-a', got %v", req.Proxy)
 	}
 }

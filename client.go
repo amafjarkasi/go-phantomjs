@@ -165,11 +165,12 @@ func (c *Client) DoContext(ctx context.Context, req *UserRequest) (*UserResponse
 
 func (c *Client) doSingle(ctx context.Context, req *UserRequest) (*UserResponseWithMeta, error) {
 	endpoint := c.endpoint + c.apiKey + "/"
+	preparedReq := normalizeUserRequestForAPI(req)
 
 	// Since we might retry, we can't use io.Pipe easily if we want to avoid double encoding,
 	// but for now, simple encoding into a buffer is safer for retries.
 	// In the future, we could optimize this.
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(preparedReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode request: %w", err)
 	}

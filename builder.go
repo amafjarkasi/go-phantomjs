@@ -66,6 +66,20 @@ func (b *PageRequestBuilder) WithProxyProvider(p proxy.ProxyProvider) *PageReque
 	return b
 }
 
+// WithProxyRouter sets a host-aware proxy provider for this request URL.
+// The router decides which proxy to use from the request host.
+func (b *PageRequestBuilder) WithProxyRouter(r proxy.URLProxyProvider) *PageRequestBuilder {
+	b.req.Proxy = r.GetProxyForURL(b.req.URL)
+	return b
+}
+
+// WithProxyRouterAttempt sets a host-aware proxy provider for this request URL
+// and selects a deterministic fallback proxy by attempt index.
+func (b *PageRequestBuilder) WithProxyRouterAttempt(r proxy.URLProxyFallbackProvider, attempt int) *PageRequestBuilder {
+	b.req.Proxy = r.GetProxyForURLAttempt(b.req.URL, attempt)
+	return b
+}
+
 // WithUserAgent sets the User-Agent string. Prefer WithProfile for a complete fingerprint.
 func (b *PageRequestBuilder) WithUserAgent(ua string) *PageRequestBuilder {
 	b.req.RequestSettings.UserAgent = ua

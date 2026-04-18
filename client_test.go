@@ -424,6 +424,124 @@ func TestDoContext_EmptyKey(t *testing.T) {
 	}
 }
 
+func TestDoPage_NormalizesBuiltinProxyToString(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ur UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+			t.Fatalf("Server failed to decode UserRequest payload: %v", err)
+		}
+
+		if len(ur.Pages) != 1 {
+			t.Fatalf("expected one page, got %d", len(ur.Pages))
+		}
+		gotProxy, ok := ur.Pages[0].Proxy.(string)
+		if !ok {
+			t.Fatalf("expected proxy to be string, got %T", ur.Pages[0].Proxy)
+		}
+		if gotProxy != "anon-us" {
+			t.Fatalf("expected proxy anon-us, got %q", gotProxy)
+		}
+
+		resp := UserResponse{
+			Status:        "success",
+			Billing:       Billing{CreditCost: 0, QuotaUsage: 0},
+			PageResponses: []PageResponse{{StatusCode: 200, Content: "ok"}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		b, _ := json.Marshal(resp)
+		_, _ = w.Write(b)
+	}))
+	defer mockServer.Close()
+
+	client := NewClient("test-key", WithEndpoint(mockServer.URL+"/"))
+	req := NewPageRequestBuilder("https://example.com").WithProxy(ProxyAnonUS).Build()
+
+	if _, err := client.DoPage(req); err != nil {
+		t.Fatalf("DoPage failed: %v", err)
+	}
+}
+
+func TestDoPage_NormalizesGeolocationProxyOptionsToString(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ur UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+			t.Fatalf("Server failed to decode UserRequest payload: %v", err)
+		}
+
+		if len(ur.Pages) != 1 {
+			t.Fatalf("expected one page, got %d", len(ur.Pages))
+		}
+		gotProxy, ok := ur.Pages[0].Proxy.(string)
+		if !ok {
+			t.Fatalf("expected proxy to be string, got %T", ur.Pages[0].Proxy)
+		}
+		if gotProxy != "geo-us" {
+			t.Fatalf("expected proxy geo-us, got %q", gotProxy)
+		}
+
+		resp := UserResponse{
+			Status:        "success",
+			Billing:       Billing{CreditCost: 0, QuotaUsage: 0},
+			PageResponses: []PageResponse{{StatusCode: 200, Content: "ok"}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		b, _ := json.Marshal(resp)
+		_, _ = w.Write(b)
+	}))
+	defer mockServer.Close()
+
+	client := NewClient("test-key", WithEndpoint(mockServer.URL+"/"))
+	req := NewPageRequestBuilder("https://example.com").WithProxy(ProxyOptions{
+		Geolocation: "US",
+	}).Build()
+
+	if _, err := client.DoPage(req); err != nil {
+		t.Fatalf("DoPage failed: %v", err)
+	}
+}
+
+func TestDoPage_NormalizesCustomProxyOptionsToString(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ur UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&ur); err != nil {
+			t.Fatalf("Server failed to decode UserRequest payload: %v", err)
+		}
+
+		if len(ur.Pages) != 1 {
+			t.Fatalf("expected one page, got %d", len(ur.Pages))
+		}
+		gotProxy, ok := ur.Pages[0].Proxy.(string)
+		if !ok {
+			t.Fatalf("expected proxy to be string, got %T", ur.Pages[0].Proxy)
+		}
+		if gotProxy != "custom-http://proxy.example.com:8080:username:password" {
+			t.Fatalf("unexpected custom proxy string: %q", gotProxy)
+		}
+
+		resp := UserResponse{
+			Status:        "success",
+			Billing:       Billing{CreditCost: 0, QuotaUsage: 0},
+			PageResponses: []PageResponse{{StatusCode: 200, Content: "ok"}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		b, _ := json.Marshal(resp)
+		_, _ = w.Write(b)
+	}))
+	defer mockServer.Close()
+
+	client := NewClient("test-key", WithEndpoint(mockServer.URL+"/"))
+	req := NewPageRequestBuilder("https://example.com").WithProxy(ProxyOptions{
+		Custom: &ProxyCustom{
+			Host: "http://proxy.example.com:8080",
+			Auth: "username:password",
+		},
+	}).Build()
+
+	if _, err := client.DoPage(req); err != nil {
+		t.Fatalf("DoPage failed: %v", err)
+	}
+}
+
 func TestUserResponseUnmarshal_ContentErrorsObject(t *testing.T) {
 	payload := `{
 		"status":"success",
