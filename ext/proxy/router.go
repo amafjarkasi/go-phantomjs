@@ -11,6 +11,17 @@ type URLProxyProvider interface {
 	GetProxyForURL(rawURL string) interface{}
 }
 
+// URLProxyHealthReporter allows routers to learn from request outcomes.
+type URLProxyHealthReporter interface {
+	ReportFailure(rawURL string, proxy interface{})
+	ReportSuccess(rawURL string, proxy interface{})
+}
+
+// URLProxyHealthSnapshotProvider exposes current proxy health for a URL.
+type URLProxyHealthSnapshotProvider interface {
+	HealthForURL(rawURL string) []ProxyHealth
+}
+
 // URLProxyFallbackProvider selects a proxy based on URL and attempt index.
 // Attempt zero is the primary selection; higher attempts select fallbacks.
 type URLProxyFallbackProvider interface {

@@ -24,6 +24,9 @@ type ChallengeOrchestrationOptions struct {
 type ChallengeAttempt struct {
 	Level    blockpolicy.Level
 	Persona  string
+	Proxy    interface{}
+	Health   []proxy.ProxyHealth
+	Blocked  bool
 	Response *phantomjscloud.UserResponseWithMeta
 	Err      error
 }
@@ -53,8 +56,19 @@ func DoPageWithChallengeOrchestration(
 		if opts.Persona != nil {
 			personaName = opts.Persona.ApplyForURLAttempt(&req, i)
 		}
+		var selectedProxy interface{}
 		if opts.Router != nil {
-			req.Proxy = opts.Router.GetProxyForURLAttempt(req.URL, i)
+			if _, ok := opts.Router.(proxy.URLProxyHealthReporter); ok {
+				// Health-aware routers choose the current best proxy each attempt.
+				selectedProxy = opts.Router.GetProxyForURL(req.URL)
+			} else {
+				selectedProxy = opts.Router.GetProxyForURLAttempt(req.URL, i)
+			}
+			req.Proxy = selectedProxy
+		}
+		var healthSnapshot []proxy.ProxyHealth
+		if hp, ok := opts.Router.(proxy.URLProxyHealthSnapshotProvider); ok {
+			healthSnapshot = hp.HealthForURL(req.URL)
 		}
 		if opts.Session != nil {
 			cookies := opts.Session.CookiesForURL(req.URL)
@@ -67,14 +81,29 @@ func DoPageWithChallengeOrchestration(
 		if opts.Session != nil {
 			opts.Session.CaptureFromResponse(resp)
 		}
+		blocked := err == nil && blockpolicy.LooksBlocked(resp)
+		if reporter, ok := opts.Router.(proxy.URLProxyHealthReporter); ok && selectedProxy != nil {
+			if err != nil {
+				// Transport/API failures are stronger negative signals than challenge pages.
+				reporter.ReportFailure(req.URL, selectedProxy)
+				reporter.ReportFailure(req.URL, selectedProxy)
+			} else if blocked {
+				reporter.ReportFailure(req.URL, selectedProxy)
+			} else {
+				reporter.ReportSuccess(req.URL, selectedProxy)
+			}
+		}
 		attempts = append(attempts, ChallengeAttempt{
 			Level:    level,
 			Persona:  personaName,
+			Proxy:    req.Proxy,
+			Health:   healthSnapshot,
+			Blocked:  blocked,
 			Response: resp,
 			Err:      err,
 		})
 
-		if err == nil && !blockpolicy.LooksBlocked(resp) {
+		if err == nil && !blocked {
 			return resp, attempts, nil
 		}
 
@@ -90,4 +119,3 @@ func DoPageWithChallengeOrchestration(
 
 	return nil, attempts, errors.New("challenge orchestration ended unexpectedly")
 }
-

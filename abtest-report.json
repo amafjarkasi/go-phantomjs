@@ -1,0 +1,144 @@
+{
+  "generatedAt": "2026-04-18T09:36:34Z",
+  "rows": [
+    {
+      "name": "amazon-home",
+      "url": "https://www.amazon.com",
+      "before": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 3089,
+        "cost": 0.000141648
+      },
+      "after": {
+        "statusCode": 424,
+        "blocked": false,
+        "attempts": 1,
+        "durationMs": 7764,
+        "cost": 0.00425307
+      },
+      "debug": [
+        "attempt=1 proxy={us } blocked=false err=false health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]"
+      ]
+    },
+    {
+      "name": "amazon-search-page2",
+      "url": "https://www.amazon.com/s?k=laptop\u0026page=2",
+      "before": {
+        "statusCode": 503,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 1746,
+        "cost": 0.000075928
+      },
+      "after": {
+        "statusCode": 424,
+        "blocked": false,
+        "attempts": 2,
+        "durationMs": 6675,
+        "cost": 0.006633721
+      },
+      "debug": [
+        "attempt=1 proxy={ca } blocked=false err=true health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]",
+        "attempt=2 proxy={us } blocked=false err=false health=map[{ca }:2 {us }:0] delta=map[{ca }:2 {us }:0]"
+      ]
+    },
+    {
+      "name": "walmart-home",
+      "url": "https://www.walmart.com",
+      "before": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 19350,
+        "cost": 0.001574717
+      },
+      "after": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 3,
+        "durationMs": 44743,
+        "cost": 0.013760626,
+        "error": "request remained blocked after challenge orchestration retries"
+      },
+      "debug": [
+        "attempt=1 proxy={us } blocked=true err=false health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]",
+        "attempt=2 proxy={ca } blocked=false err=true health=map[{ca }:0 {us }:1] delta=map[{ca }:0 {us }:1]",
+        "attempt=3 proxy={us } blocked=true err=false health=map[{ca }:2 {us }:1] delta=map[{ca }:2 {us }:0]"
+      ]
+    },
+    {
+      "name": "walmart-search-page2",
+      "url": "https://www.walmart.com/search?q=laptop\u0026page=2",
+      "before": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 11049,
+        "cost": 0.000533594
+      },
+      "after": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 3,
+        "durationMs": 24061,
+        "cost": 0.002801348,
+        "error": "request remained blocked after challenge orchestration retries"
+      },
+      "debug": [
+        "attempt=1 proxy={ca } blocked=false err=true health=map[{ca }:2 {us }:2] delta=map[{ca }:2 {us }:2]",
+        "attempt=2 proxy={us } blocked=true err=false health=map[{ca }:4 {us }:2] delta=map[{ca }:2 {us }:0]",
+        "attempt=3 proxy={us } blocked=true err=false health=map[{ca }:4 {us }:3] delta=map[{ca }:0 {us }:1]"
+      ]
+    },
+    {
+      "name": "target-home",
+      "url": "https://www.target.com",
+      "before": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 19605,
+        "cost": 0.00201105
+      },
+      "after": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 3,
+        "durationMs": 18952,
+        "cost": 0.011302894,
+        "error": "request remained blocked after challenge orchestration retries"
+      },
+      "debug": [
+        "attempt=1 proxy={us } blocked=true err=false health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]",
+        "attempt=2 proxy={ca } blocked=false err=true health=map[{ca }:0 {us }:1] delta=map[{ca }:0 {us }:1]",
+        "attempt=3 proxy={us } blocked=true err=false health=map[{ca }:2 {us }:1] delta=map[{ca }:2 {us }:0]"
+      ]
+    },
+    {
+      "name": "target-search-page2",
+      "url": "https://www.target.com/s?searchTerm=laptop\u0026page=2",
+      "before": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 1,
+        "durationMs": 17087,
+        "cost": 0.002602124
+      },
+      "after": {
+        "statusCode": 200,
+        "blocked": true,
+        "attempts": 3,
+        "durationMs": 20763,
+        "cost": 0.011410395,
+        "error": "request remained blocked after challenge orchestration retries"
+      },
+      "debug": [
+        "attempt=1 proxy={ca } blocked=false err=true health=map[{ca }:2 {us }:2] delta=map[{ca }:2 {us }:2]",
+        "attempt=2 proxy={us } blocked=true err=false health=map[{ca }:4 {us }:2] delta=map[{ca }:2 {us }:0]",
+        "attempt=3 proxy={us } blocked=true err=false health=map[{ca }:4 {us }:3] delta=map[{ca }:0 {us }:1]"
+      ]
+    }
+  ]
+}

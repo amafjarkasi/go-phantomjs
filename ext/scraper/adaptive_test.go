@@ -166,3 +166,66 @@ func TestDoPageWithRoutingAndAdaptivePolicy_RoutesByAttemptAndSucceeds(t *testin
 		t.Fatalf("expected fallback proxies [anon-us, anon-ca], got %#v", proxies)
 	}
 }
+
+func TestDoPageWithRoutingAndAdaptivePolicy_HealthRouterFeedbackBetweenAttempts(t *testing.T) {
+	var proxies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req phantomjscloud.UserRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		p, _ := req.Pages[0].Proxy.(string)
+		proxies = append(proxies, p)
+
+		resp := phantomjscloud.UserResponse{
+			Status: "success",
+			Billing: phantomjscloud.Billing{
+				CreditCost: 0,
+				QuotaUsage: 0,
+			},
+			PageResponses: []phantomjscloud.PageResponse{
+				{StatusCode: 503, Content: "captcha required"},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		b, _ := json.Marshal(resp)
+		_, _ = w.Write(b)
+	}))
+	defer server.Close()
+
+	client := phantomjscloud.NewClient("test-key", phantomjscloud.WithEndpoint(server.URL+"/"))
+	baseReq := phantomjscloud.NewPageRequestBuilder("https://example.com").WithOutputAsJson(true).Build()
+	router := proxy.NewHealthRouter().
+		RouteHost("example.com", "anon-us", "anon-ca", "anon-nl")
+	// Force first pick to anon-ca, then blocked penalty should make anon-nl healthiest.
+	router.ReportFailure("https://example.com", "anon-us")
+	router.ReportFailure("https://example.com", "anon-us")
+
+	_, attempts, err := DoPageWithRoutingAndAdaptivePolicy(
+		context.Background(),
+		client,
+		baseReq,
+		router,
+		blockpolicy.LevelAggressive,
+		2,
+	)
+	if err == nil {
+		t.Fatal("expected blocked error")
+	}
+	if len(attempts) != 2 {
+		t.Fatalf("expected 2 attempts, got %d", len(attempts))
+	}
+	if len(proxies) != 2 {
+		t.Fatalf("expected 2 routed requests, got %d", len(proxies))
+	}
+	if proxies[0] != "anon-ca" {
+		t.Fatalf("expected first proxy anon-ca, got %q", proxies[0])
+	}
+	if proxies[1] != "anon-nl" {
+		t.Fatalf("expected second proxy anon-nl after health penalty, got %q", proxies[1])
+	}
+	if len(attempts[0].Health) == 0 || len(attempts[1].Health) == 0 {
+		t.Fatalf("expected health snapshots in attempts, got %#v", attempts)
+	}
+}

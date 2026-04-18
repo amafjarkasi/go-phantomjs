@@ -7,41 +7,35 @@
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue)](https://go.dev/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-`go-phantomjs` is a production-ready Go client library for the [PhantomJsCloud](https://phantomjscloud.com/) API. Beyond a thin API wrapper, it ships a full browser-automation scripting layer and a modular extension ecosystem (`ext/`) that composes fingerprint evasions, realistic browser profiles, URL blocklists, and viewport presets into a single fluent API — letting you build sophisticated headless-browser scrapers entirely in Go.
+`go-phantomjs` is a production-focused Go client for [PhantomJsCloud](https://phantomjscloud.com/): typed API models, fluent automation scripting, and composable scraping extensions (`ext/*`) for stealth, profiles, routing, retries, and session persistence.
 
-## Recent API Compatibility Updates
+## Table Of Contents
 
-- `Cookie.Expires` now uses `float64` to match real PhantomJsCloud payloads where `expires` can be non-integer.
-- `PageResponse.contentErrors` decoding now tolerates both string arrays and object arrays.
-- Page-level proxy options are normalized for API compatibility:
-  - `ProxyBuiltin{Location:"us"}` -> `"anon-us"`
-  - `ProxyOptions{Geolocation:"us"}` -> `"geo-us"`
-  - `ProxyOptions{Custom:{Host,Auth}}` -> `"custom-{host}:{auth}"`
-- Added regression tests for both response shapes in [`client_test.go`](client_test.go).
-- Validated live behavior against major retailer targets (including paginated/search URLs) without JSON unmarshal failures.
+- [Why This Library](#why-this-library)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [Request Builder](#request-builder)
+- [Automation Script Builder](#automation-script-builder)
+- [Extensions](#extensions)
+- [Reliability Patterns](#reliability-patterns)
+- [Live A/B Harness](#live-ab-harness)
+- [API Compatibility Notes](#api-compatibility-notes)
+- [Repository Layout](#repository-layout)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Features
+## Why This Library
 
-- **`PageRequestBuilder`**: Fluent builder for `PageRequest` itself — composes `ext/` presets into a complete request without touching nested struct fields. Chain `WithRenderType`, `WithProxy`, `WithProfile`, `WithBlocklist`, `WithRenderSettings`, `WithViewport`, `WithOverseerScriptBuilder`, and more.
-- **Fluent Automation Builder**: `OverseerScriptBuilder` generates complex Puppeteer-style automation scripts without string concatenation — click, type, scroll, hover, inject scripts, evaluate JS, take mid-execution screenshots, and manage cookies and headers, all chainable.
-- **`FetchWithAutomation()`**: Execute a script and get the native structured return value from any `Evaluate()` call back as a parsed Go `any` — no JSON unwrapping required.
-- **Convenience Fetchers**: One-line helpers `FetchPlainText()`, `FetchPDF()`, `FetchScreenshot()`, and `RenderRawHTML()` skip the response envelope entirely — `RenderRawHTML` renders an in-memory HTML string without needing a web server, perfect for PDF invoice and report generation.
-- **Full API Type Coverage**: Strongly-typed Go structs for every PhantomJsCloud parameter — `PageRequest`, `RequestSettings`, `RenderSettings`, `ResourceModifier`, `DoneWhen`, `UrlSettings`, `ProxyOptions`, and more — with JSON tags already wired.
-- **Stealth Evasions** (`ext/stealth`): One call — `ApplyStealth()` — injects 14 browser fingerprinting evasions ported from [`puppeteer-extra-plugin-stealth`](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth), spoofing `navigator.webdriver`, WebGL vendor strings, Chrome runtime APIs, iframe `contentWindow`, media codec lists, outer window dimensions, and more. The evasion payload is embedded at compile time via `//go:embed` — zero runtime deps.
-- **Browser Profiles** (`ext/useragents`): 15+ current UA string constants covering Chrome, Firefox, Safari, Edge, and mobile browsers, plus `Profile` structs that bundle a UA with a complete set of matching `Sec-CH-UA`, `Accept`, `Accept-Language`, and `Sec-Fetch-*` headers. Apply in one call with `UseProfile()` on the builder.
-- **URL Blocklists** (`ext/blocklist`): Pre-built `ResourceModifier` slices blocking 20 ad networks, 28 analytics beacons, web fonts, and media assets — composable via `Lightweight()` and `Full()` presets. Cuts page request volume by 40–60% on ad-heavy targets, directly reducing API billing cost.
-- **Viewport Presets** (`ext/viewport`): Named presets for every common screen — desktop HD/FHD/QHD/4K, laptop, mobile portrait/landscape, tablet, and OG image thumbnails (640×480, 1200×630). Apply to `RenderSettings` via `AsRenderSettings()` or live page emulation via `ApplyViewport()` on the builder.
-- **Race-Free Navigation**: `ClickAndWaitForNavigation()` atomically pairs a click with a page-load wait, eliminating the race condition that `Click()` + `WaitForNavigation()` are susceptible to on fast servers.
-- **Context-Aware HTTP**: Every `Do`/`DoPage` call has a `DoContext`/`DoPageContext` counterpart for cancellation and deadline propagation. Pair with `context.WithTimeout` for reliable production use.
-- **Functional Client Options**: Configure the client with `WithTimeout(d)` or `WithHTTPClient(hc)` — bring your own transport, proxy, or TLS config without subclassing.
-- **Response Metadata**: Automatically parses `pjsc-*` response headers into a structured `ResponseMetadata` object — billing credit cost, content status code, and done-when event — attached to every response.
-- **Proxy Constants**: Named constants for every PhantomJsCloud proxy location (`ProxyAnonUS`, `ProxyGeoUK`, `ProxyGeoDE`, etc.) so you're never hardcoding location strings.
-- **Host-Aware Proxy Routing** (`ext/proxy`): Route proxies by hostname with round-robin pools and deterministic fallback selection per retry attempt (`GetProxyForURLAttempt`), inspired by proxy-router style workflows.
-- **Adaptive Block Policy Retries** (`ext/blockpolicy` + `ext/scraper`): Start with aggressive blocking to cut cost, then progressively relax (`aggressive` → `balanced` → `relaxed` → `off`) when a response appears challenge-blocked.
-- **Persona Engine** (`ext/persona`): Apply host-routed, attempt-aware request personas (proxy + profile + viewport + blockers) for cleaner anti-detection orchestration.
-- **Challenge Orchestration** (`ext/scraper`): One-call retries that combine adaptive block policy + persona routing + optional proxy routing + session cookie carryover.
-- **Session Persistence Hardening** (`ext/session`): Cookie store filters by host/scheme/expiry to avoid cross-site leakage while persisting challenge/session cookies between attempts.
-- **CI-Tested**: GitHub Actions runs `go vet`, `go test -race`, `go build`, and `golangci-lint` on every push. All packages have dedicated unit tests including race-detector coverage.
+- Typed request/response models for PhantomJsCloud API payloads.
+- Fluent script builder (`OverseerScriptBuilder`) for browser actions without string-concatenation.
+- Fluent request builder (`PageRequestBuilder`) to compose profiles, routing, block policies, and render settings.
+- Composable reliability modules:
+  - host-aware proxy routing
+  - health-aware proxy failover
+  - adaptive block-policy retries
+  - challenge orchestration with persona + session persistence
+- Test-first codebase with race-safe CI checks.
 
 ## Installation
 
@@ -51,29 +45,58 @@ go get github.com/amafjarkasi/go-phantomjs
 
 ## Quick Start
 
-### Creating a Client
+### Minimal Client + HTML Fetch
 
 ```go
-// Minimal — uses demo key (low quota)
-client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"))
+package main
 
-// Production — with your API key and a custom timeout
-client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"),
-    phantomjscloud.WithTimeout(60*time.Second),
+import (
+	"fmt"
+	"log"
+	"os"
+
+	phantomjscloud "github.com/amafjarkasi/go-phantomjs"
 )
 
-// Advanced — bring your own http.Client (custom proxy, TLS, transport)
-client := phantomjscloud.NewClient("YOUR_KEY",
-    phantomjscloud.WithHTTPClient(&http.Client{
-        Timeout:   90 * time.Second,
-        Transport: myCustomTransport,
-    }),
+func main() {
+	client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"))
+
+	req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+		WithRenderType("html").
+		WithOutputAsJson(true).
+		Build()
+
+	resp, err := client.DoPage(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("status:", resp.PageResponses[0].StatusCode)
+	fmt.Println("cost:", resp.Metadata.BillingCreditCost)
+}
+```
+
+### Convenience Fetchers
+
+```go
+text, _ := client.FetchPlainText("https://example.com")
+pdf, _ := client.FetchPDF("https://example.com", nil)
+png, _ := client.FetchScreenshot("https://example.com", nil)
+```
+
+## Core Concepts
+
+### Client Construction
+
+```go
+client := phantomjscloud.NewClient(
+	os.Getenv("PHANTOMJSCLOUD_API_KEY"),
+	phantomjscloud.WithTimeout(90*time.Second),
+	// phantomjscloud.WithHTTPClient(customHTTPClient),
 )
 ```
 
-### Context Support
-
-Every `Do`/`DoPage` call has a `Context` variant for cancellation and deadlines:
+### Context-Aware Calls
 
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -82,712 +105,282 @@ defer cancel()
 resp, err := client.DoPageContext(ctx, req)
 ```
 
-### Convenience Fetchers (PDFs, Images, Scripts)
-
-If you don't care about the full API metadata, you can use the built in convenience fetchers:
+### Full `UserRequest` Batch Calls
 
 ```go
-package main
-
-import (
- "os"
- "log"
- "github.com/amafjarkasi/go-phantomjs"
-)
-
-func main() {
-    client := phantomjscloud.NewClient("YOUR_API_KEY")
-    
-    // Fetch purely the stripped text of a webpage (Great for LLMs!)
-    text, err := client.FetchPlainText("https://example.com")
-    if err == nil {
-        log.Println(text)
-    }
-
-    // Fetch a base64-decoded PDF instantly
-    pdfBytes, err := client.FetchPDF("https://example.com", nil)
-    if err != nil {
-        log.Fatalf("Error: %v", err)
-    }
-    os.WriteFile("output.pdf", pdfBytes, 0644)
-    
-    // Evaluate a script block and cleanly parse exactly what it returns
-    builder := phantomjscloud.NewOverseerScriptBuilder().
-        WaitForNavigation().
-        Evaluate("() => { return { title: document.title }; }")
-        
-    result, err := client.FetchWithAutomation("https://example.com", builder)
-    if err != nil {
-        log.Fatalf("Error: %v", err)
-    }
-    
-    // Prints map[title:Example Domain]
-    log.Println(result) 
+userReq := &phantomjscloud.UserRequest{
+	Pages: []phantomjscloud.PageRequest{
+		{URL: "https://example.com/1", RenderType: "html"},
+		{URL: "https://example.com/2", RenderType: "html"},
+	},
 }
+resp, err := client.Do(userReq)
 ```
 
-### Advanced HTML Extraction
+## Request Builder
+
+`PageRequestBuilder` is the main composition surface for page requests.
 
 ```go
-package main
-
-import (
- "fmt"
- "log"
- "github.com/amafjarkasi/go-phantomjs"
-)
-
-func main() {
- // Passing an empty string uses the free demo key (low quota).
- // Replace with your actual PhantomJsCloud API key.
- client := phantomjscloud.NewClient(os.Getenv("PHANTOMJSCLOUD_API_KEY"))
-
- req := &phantomjscloud.PageRequest{
-  URL:        "https://example.com",
-  RenderType: "html",
- }
-
- resp, err := client.DoPage(req)
- if err != nil {
-  log.Fatalf("Error: %v", err)
- }
-
- fmt.Printf("Cost: %f credits\n", resp.Metadata.BillingCreditCost)
- fmt.Printf("Content: %s\n", resp.PageResponses[0].Content)
-}
+req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+	WithRenderType("html").
+	WithOutputAsJson(true).
+	WithQuality(85).
+	WithHeader("x-my-header", "value").
+	Build()
 ```
 
-### Advanced Automation and Browser Scripting
+Common methods:
 
-Use the `OverseerScriptBuilder` to construct scripts that navigate, interact, and manipulate the DOM before returning the final rendered output.
+- Rendering: `WithRenderType`, `WithQuality`, `WithViewport`, `WithClipRectangle`, `WithZoomFactor`, `WithPdfOptions`
+- Request behavior: `WithWaitInterval`, `WithIgnoreImages`, `WithClearCache`, `WithDoneWhen`
+- Identity: `WithUserAgent`, `WithProfile`, `WithProxy`, `WithProxyRouter`, `WithProxyRouterAttempt`
+- Payload: `WithContent`, `WithUrlSettings`, `WithSuppressJson`
+- Auth/session: `WithAuthentication`, `WithCookies`
+- Scripting: `WithOverseerScript`, `WithOverseerScriptBuilder`
 
-```go
-package main
+## Automation Script Builder
 
-import (
- "fmt"
- "log"
- "github.com/amafjarkasi/go-phantomjs"
-)
-
-func main() {
- client := phantomjscloud.NewClient("YOUR-API-KEY")
-
- // Build an automation script dynamically
- script := phantomjscloud.NewOverseerScriptBuilder().
-  WaitForSelector("body").
-  Type("input#search", "golang", 100).
-  Click("button#submit").
-  WaitForNavigation().
-  Build()
-
- req := &phantomjscloud.PageRequest{
-  URL:            "https://example.com",
-  RenderType:     "png", // Take a screenshot after the script runs
-  OutputAsJson:   true,
-  OverseerScript: script,
-  RequestSettings: phantomjscloud.RequestSettings{
-   // Connect through a US residential proxy
-   Proxy: phantomjscloud.ProxyGeoUS,
-            // Skip image loading for faster performance if we just want data
-   ResourceModifier: []phantomjscloud.ResourceModifier{
-    {Type: "image", IsBlacklisted: true},
-   },
-  },
-  RenderSettings: phantomjscloud.RenderSettings{
-   Viewport: phantomjscloud.Viewport{Width: 1280, Height: 720},
-  },
- }
-
- resp, err := client.DoPage(req)
- if err != nil {
-  log.Fatalf("Error: %v", err)
- }
-
- // Assuming success, resp.PageResponses[0].Content contains the base64 encoded PNG.
- fmt.Printf("Captured screenshot length: %d bytes\n", len(resp.PageResponses[0].Content))
-}
-```
-
-### Comprehensive Automation Scripting
-
-`OverseerScriptBuilder` exposes the full Puppeteer-style surface area supported by PhantomJsCloud. Every method is chainable and generates the correct `await` expression automatically:
-
-```go
- script := phantomjscloud.NewOverseerScriptBuilder().
-  // ── Fingerprinting & identity
-  UseProfile(useragents.ChromeWindowsProfile()). // UA + all matching headers in one call
-  ApplyStealth().                // 14 evasions: navigator, WebGL, chrome APIs, iFrames
-  ApplyViewport(viewport.FHD.Viewport). // Full viewport flags: isMobile, hasTouch, scale
-
-  // ── Navigation
-  Goto("https://example.com").
-  WaitForNavigation().           // Wait for next load/redirect
-  Reload().                      // Native browser refresh
-
-  // ── DOM interaction
-  AddScriptTag("https://example.com/utility.js").
-  Evaluate("() => { console.log('Injected!'); }").
-  WaitForSelector("body").
-  WaitForXPath("//div[@class='results']"). // XPath support
-  WaitForFunction("window.ready === true"). // Wait on any JS expression
-  WaitForDelay(2000).            // Pause for UI transitions
-
-  // ── Form automation
-  Focus("input#search").
-  ClearInput("input#search").    // Reliably empties the field via JS
-  Type("input#search", "hello world", 100).
-  Select("select#country", "US", "UK"). // Multi-select supported
-  KeyboardPress("Enter", 1).     // Native keystroke
-  ClickAndWaitForNavigation("button[type=submit]"). // Atomic: no race condition
-
-  // ── Scrolling & mouse
-  ScrollBy(0, 500).              // Relative pixel scroll
-  ScrollToBottom().              // Jump to document.body.scrollHeight
-  Hover("button#menu").          // Trigger CSS :hover states
-  MouseMove(100, 200).           // OS-level cursor movement
-  MouseClickPosition(300, 400).  // Coordinate click, bypasses DOM events
-
-  // ── Headers, cookies & style
-  SetUserAgent("MyAgent").       // Raw UA override (prefer UseProfile)
-  SetExtraHTTPHeaders(map[string]string{"Authorization": "Bearer token"}).
-  SetCookie("session", "abc", "example.com").
-  DeleteCookie("session", "example.com").
-  AddStyleTag("body { background: red; }").
-  SetViewport(1920, 1080).       // Simple w/h override (prefer ApplyViewport)
-
-  // ── Rendering & completion
-  RenderContent().               // Capture HTML mid-script
-  RenderScreenshot(true).        // Synchronous screenshot mid-execution
-  ManualWait().                  // Disable auto-completion
-  Done().                        // Signal manual completion
-  Build()
-```
-
-### Stealth Evasions
-
-Call `ApplyStealth()` before navigating to inject a comprehensive set of browser fingerprinting evasions derived from [`puppeteer-extra-plugin-stealth`](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth). This spoofs the APIs that bot-detection scripts most commonly probe:
-
-| Evasion | What it fixes |
-|---|---|
-| `navigator.webdriver` | Removes the automation flag |
-| `chrome.app` / `chrome.csi` / `chrome.runtime` | Mocks missing Chrome extension APIs |
-| `navigator.plugins` / `navigator.languages` / `navigator.vendor` | Supplies realistic plugin lists |
-| `webgl.vendor` | Spoofs GPU vendor strings |
-| `iframe.contentWindow` | Hides proxy artifacts in iframes |
-| `media.codecs` | Reports realistic codec support |
-| `window.outerdimensions` | Corrects outer window size |
+`OverseerScriptBuilder` builds Puppeteer-style scripts with chainable helpers.
 
 ```go
 script := phantomjscloud.NewOverseerScriptBuilder().
-  ApplyStealth().              // Inject all evasions before page load
-  Goto("https://bot.sannysoft.com").
-  WaitForDelay(2000).
-  RenderScreenshot(true).
-  Build()
+	WaitForSelector("input#search").
+	Type("input#search", "golang", 75).
+	ClickAndWaitForNavigation("button[type=submit]").
+	WaitForDelay(1000).
+	RenderContent().
+	Build()
 ```
 
-> **Regenerating the payload** — the stealth JS lives in `ext/stealth/evasions.js` and is embedded at compile time via `//go:embed`. To update it after upgrading the npm package:
->
-> ```bash
-> npm update puppeteer-extra-plugin-stealth
-> node scripts/gen_stealth.js
-> ```
+Useful groups:
 
-### Blocklist — Block Ads, Trackers & Dead Weight
+- Navigation: `Goto`, `WaitForNavigation`, `Reload`, `GoBack`, `GoForward`
+- Interaction: `Click`, `Type`, `Select`, `Hover`, `Focus`, `KeyboardPress`, `ScrollBy`
+- Conditions: `WaitForSelector`, `WaitForXPath`, `WaitForFunction`, `WaitForNavigationEvent`
+- Identity: `UseProfile`, `ApplyStealth`, `ApplyViewport`, `SetUserAgent`, `SetExtraHTTPHeaders`
+- Cookies: `SetCookie`, `DeleteCookie`
+- Completion: `ManualWait`, `Done`, `RenderContent`, `RenderScreenshot`
 
-The `ext/blocklist` package provides pre-built `ResourceModifier` slices for the most common scraping optimizations. Blocking ads and trackers alone can cut a typical page's request volume by 40–60% and reduce billing costs proportionally.
+## Extensions
+
+### `ext/stealth`
+
+Stealth evasions ported from `puppeteer-extra-plugin-stealth` and embedded via `go:embed`.
 
 ```go
-import "github.com/amafjarkasi/go-phantomjs/ext/blocklist"
-
-req := &phantomjscloud.PageRequest{
-  URL: "https://edition.cnn.com",
-  RequestSettings: phantomjscloud.RequestSettings{
-    // Lightweight: block ads + trackers + fonts only
-    ResourceModifier: blocklist.Lightweight(),
-
-    // Or Full: also block images and video
-    // ResourceModifier: blocklist.Full(),
-
-    // Or compose your own:
-    // ResourceModifier: append(blocklist.Ads(), blocklist.Fonts()...),
-  },
-}
+script := phantomjscloud.NewOverseerScriptBuilder().
+	ApplyStealth().
+	Goto("https://bot.sannysoft.com").
+	RenderScreenshot(true).
+	Build()
 ```
 
-| Preset | Blocks |
-|---|---|
-| `blocklist.Ads()` | 20 major ad networks |
-| `blocklist.Trackers()` | 28 analytics/tracking beacons |
-| `blocklist.Fonts()` | Google Fonts, Typekit, web font files |
-| `blocklist.Media()` | All image and video assets |
-| `blocklist.Lightweight()` | Ads + Trackers + Fonts _(recommended default)_ |
-| `blocklist.Full()` | Ads + Trackers + Fonts + Media |
+### `ext/useragents`
 
-### Host-Aware Proxy Router (with Fallbacks)
-
-`ext/proxy` now includes a URL-aware host router for multi-proxy setups:
+Realistic UA constants and profile bundles with matching headers.
 
 ```go
-import (
-  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
-  "github.com/amafjarkasi/go-phantomjs/ext/proxy"
-)
-
-router := proxy.NewHostRouter(phantomjscloud.ProxyAnonUS). // default pool
-  RouteHost("amazon.com", phantomjscloud.ProxyGeoUS, phantomjscloud.ProxyGeoUSCA).
-  RouteHost("walmart.com", phantomjscloud.ProxyGeoUS)
-
-// Primary route selection (round-robin for host pool)
-req := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com").
-  WithProxyRouter(router).
-  Build()
-
-// Deterministic fallback for retry attempt #1
-retryReq := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com").
-  WithProxyRouterAttempt(router, 1).
-  Build()
+profile := useragents.ChromeWindowsProfile()
+req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+	WithProfile(profile).
+	Build()
 ```
 
-### Adaptive Block Policy Retries
+### `ext/viewport`
 
-For dynamic sites, start cheap and only relax resource blocking when needed:
+Named viewport presets for desktop, mobile, tablet, thumbnails.
 
 ```go
-import (
-  "context"
-  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
-  "github.com/amafjarkasi/go-phantomjs/ext/blockpolicy"
-  "github.com/amafjarkasi/go-phantomjs/ext/scraper"
-)
-
-baseReq := phantomjscloud.NewPageRequestBuilder("https://www.target.com/s?searchTerm=laptop&page=2").
-  WithRenderType("html").
-  WithOutputAsJson(true).
-  Build()
-
-resp, attempts, err := scraper.DoPageWithAdaptiveBlockPolicy(
-  context.Background(),
-  client,
-  baseReq,
-  blockpolicy.LevelAggressive, // starts with blocklist.Full()
-  3,                           // fallback levels on block/challenge
-)
-_ = resp
-_ = attempts
-_ = err
+req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+	WithRenderType("jpeg").
+	WithViewport(viewport.FHD.Viewport).
+	Build()
 ```
 
-### One-Call Routing + Adaptive Policy
+### `ext/blocklist`
 
-If you want both host-aware proxy fallback and adaptive block-policy retries together:
+Prebuilt URL/resource blocklists for cost/performance tuning.
+
+```go
+req := phantomjscloud.NewPageRequestBuilder("https://example.com").
+	WithBlocklist(blocklist.Lightweight()).
+	Build()
+```
+
+### `ext/blockpolicy`
+
+Policy levels for progressive relax-on-block retries:
+
+- `LevelAggressive`
+- `LevelBalanced`
+- `LevelRelaxed`
+- `LevelOff`
+
+### `ext/proxy`
+
+Proxy capabilities:
+
+- `HostRouter`: host-aware round-robin + deterministic fallback by attempt.
+- `HealthRouter`: host-aware routing with per-domain health scores and failover learning.
+
+```go
+router := proxy.NewHealthRouter(phantomjscloud.ProxyAnonUS).
+	RouteHost("amazon.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA)
+```
+
+### `ext/persona`
+
+Domain-routed persona bundles (proxy + profile + viewport + blockers).
+
+```go
+engine := persona.NewEngine().
+	Define("desktop-us", persona.Config{
+		Proxy:    phantomjscloud.ProxyAnonUS,
+		Profile:  useragents.ChromeWindowsProfile(),
+		Viewport: viewport.FHD,
+	}).
+	RouteHost("amazon.com", "desktop-us")
+```
+
+### `ext/session`
+
+Cookie store with host/scheme/expiry filtering for safer persistence.
+
+```go
+store := session.NewStore()
+store.CaptureFromResponse(resp)
+cookies := store.CookiesForURL("https://example.com")
+```
+
+### `ext/scraper`
+
+Higher-level orchestration helpers:
+
+- `DoPageWithAdaptiveBlockPolicy`
+- `DoPageWithRoutingAndAdaptivePolicy`
+- `DoPageWithChallengeOrchestration`
+- `BuildChallengeDebugReport`
+
+## Reliability Patterns
+
+### Host Routing + Adaptive Policy
 
 ```go
 router := proxy.NewHostRouter(phantomjscloud.ProxyAnonUS).
-  RouteHost("amazon.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA).
-  RouteHost("walmart.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA)
+	RouteHost("example.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA)
 
 resp, attempts, err := scraper.DoPageWithRoutingAndAdaptivePolicy(
-  context.Background(),
-  client,
-  baseReq,
-  router,
-  blockpolicy.LevelAggressive,
-  3,
+	context.Background(),
+	client,
+	baseReq,
+	router,
+	blockpolicy.LevelAggressive,
+	3,
 )
-_ = resp
-_ = attempts
-_ = err
 ```
 
-### Persona Engine + Challenge Orchestration
-
-Use `ext/persona` and `ext/session` with `ext/scraper` for one-call challenge handling:
+### Challenge Orchestration (Persona + Session + Health Routing)
 
 ```go
-import (
-  "context"
-  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
-  "github.com/amafjarkasi/go-phantomjs/ext/blockpolicy"
-  "github.com/amafjarkasi/go-phantomjs/ext/persona"
-  "github.com/amafjarkasi/go-phantomjs/ext/scraper"
-  "github.com/amafjarkasi/go-phantomjs/ext/session"
-  "github.com/amafjarkasi/go-phantomjs/ext/useragents"
-  "github.com/amafjarkasi/go-phantomjs/ext/viewport"
-)
+router := proxy.NewHealthRouter(phantomjscloud.ProxyAnonUS).
+	RouteHost("example.com", phantomjscloud.ProxyAnonUS, phantomjscloud.ProxyAnonCA)
 
 engine := persona.NewEngine().
-  Define("desktop-us", persona.Config{
-    Proxy:    phantomjscloud.ProxyAnonUS,
-    Profile:  useragents.ChromeWindowsProfile(),
-    Viewport: viewport.FHD,
-  }).
-  Define("mobile-ca", persona.Config{
-    Proxy:    phantomjscloud.ProxyAnonCA,
-    Profile:  useragents.FirefoxWindowsProfile(),
-    Viewport: viewport.MobilePortrait,
-  }).
-  RouteHost("amazon.com", "desktop-us", "mobile-ca").
-  SetDefault("desktop-us")
+	Define("desktop-us", persona.Config{
+		Proxy:    phantomjscloud.ProxyAnonUS,
+		Profile:  useragents.ChromeWindowsProfile(),
+		Viewport: viewport.FHD,
+	}).
+	RouteHost("example.com", "desktop-us")
 
 store := session.NewStore()
-baseReq := phantomjscloud.NewPageRequestBuilder("https://www.amazon.com/s?k=laptop&page=2").
-  WithRenderType("html").
-  WithOutputAsJson(true).
-  Build()
 
 resp, trace, err := scraper.DoPageWithChallengeOrchestration(
-  context.Background(),
-  client,
-  baseReq,
-  scraper.ChallengeOrchestrationOptions{
-    Persona:     engine,
-    Session:     store,
-    StartLevel:  blockpolicy.LevelAggressive,
-    MaxAttempts: 3,
-  },
+	context.Background(),
+	client,
+	baseReq,
+	scraper.ChallengeOrchestrationOptions{
+		Persona:     engine,
+		Router:      router,
+		Session:     store,
+		StartLevel:  blockpolicy.LevelAggressive,
+		MaxAttempts: 3,
+	},
 )
+
+report := scraper.BuildChallengeDebugReport(trace)
 _ = resp
-_ = trace
+_ = report
 _ = err
 ```
 
-### User Agents — Realistic Browser Profiles
+Notes:
 
-The `ext/useragents` package ships 15 current UA string constants covering every major browser and platform, plus `Profile` structs that bundle a UA with a complete matching header set (`Sec-CH-UA`, `Accept`, `Accept-Language`, `Sec-Fetch-*`) — because mismatched UA/header combinations are one of the most common bot signals.
+- Health router penalties are domain-scoped.
+- Transport/API errors are penalized more strongly than challenge-page blocks.
+- `ChallengeAttempt` and `AdaptiveAttempt` include trace fields (`Proxy`, `Blocked`, health snapshots when available).
 
-**UA constants by platform:**
+## Live A/B Harness
 
-| Constant | Browser |
-|---|---|
-| `ChromeWin`, `ChromeWin11` | Chrome 122 on Windows 10 / 11 |
-| `ChromeMac`, `ChromeLinux` | Chrome 122 on macOS / Linux |
-| `FirefoxWin`, `FirefoxMac` | Firefox 123 on Windows / macOS |
-| `SafariMac`, `SafariIPad`, `SafariIPhone` | Safari 17 on macOS / iOS |
-| `EdgeWin` | Edge 122 on Windows |
-| `ChromeAndroid`, `ChromeAndroidTablet` | Chrome 122 on Pixel 8 / Pixel Tablet |
-| `Googlebot`, `GooglebotMobile`, `Bingbot` | Search crawler UAs |
+`cmd/abtest` compares baseline vs advanced orchestration on live retailer targets.
 
-**Profile constructors:** `ChromeWindowsProfile()`, `ChromeMacProfile()`, `FirefoxWindowsProfile()`
+### Run
 
-```go
-import "github.com/amafjarkasi/go-phantomjs/ext/useragents"
-
-// Simple: just the UA string in RequestSettings
-req := &phantomjscloud.PageRequest{
-  RequestSettings: phantomjscloud.RequestSettings{
-    UserAgent: useragents.ChromeWin,
-  },
-}
-
-// Better: full browser profile with matching headers in RequestSettings
-profile := useragents.ChromeWindowsProfile()
-req = &phantomjscloud.PageRequest{
-  RequestSettings: phantomjscloud.RequestSettings{
-    UserAgent:     profile.UserAgent,
-    CustomHeaders: profile.Headers,
-  },
-}
-
-// Best: set profile inside the automation script — UA and headers applied at evaluation time
-script := phantomjscloud.NewOverseerScriptBuilder().
-  UseProfile(useragents.ChromeWindowsProfile()). // setUserAgent + setExtraHTTPHeaders in one call
-  Goto("https://example.com").
-  Build()
+```bash
+set PHANTOMJSCLOUD_API_KEY=YOUR_KEY
+go run ./cmd/abtest
 ```
 
-### Viewport — Named Display Presets
+### Optional Exports
 
-The `ext/viewport` package provides named `Preset` variables for common screen configurations. Presets can be used in two ways:
+Export machine-readable and markdown reports:
 
-**In `RenderSettings`** (affects the rendered output size and clip):
-
-```go
-import "github.com/amafjarkasi/go-phantomjs/ext/viewport"
-
-req := &phantomjscloud.PageRequest{
-  URL:            "https://example.com",
-  RenderType:     "jpeg",
-  RenderSettings: viewport.FHD.AsRenderSettings(),           // 1920×1080 desktop
-}
-
-req = &phantomjscloud.PageRequest{
-  URL:            "https://example.com",
-  RenderType:     "jpeg",
-  RenderSettings: viewport.Thumbnail1200.AsRenderSettings(), // 1200×630 OG image, with clip
-}
+```bash
+set ABTEST_EXPORT_JSON=abtest-report.json
+set ABTEST_EXPORT_MD=abtest-report.md
+go run ./cmd/abtest
 ```
 
-**In the automation script** (live mobile emulation via `page.setViewport`):
+## API Compatibility Notes
 
-```go
-script := phantomjscloud.NewOverseerScriptBuilder().
-  ApplyViewport(viewport.MobilePortrait.Viewport). // isMobile:true, hasTouch:true, 390×844
-  Goto("https://example.com").
-  Build()
-```
+- `Cookie.Expires` uses `float64` to support non-integer expiration values returned by PhantomJsCloud.
+- `PageResponse.contentErrors` supports both:
+  - `[]string`
+  - object arrays (`[{message: "..."}]`)
+- Page-level proxy inputs are normalized before API send:
+  - `ProxyBuiltin{Location:"us"}` -> `"anon-us"`
+  - `ProxyOptions{Geolocation:"us"}` -> `"geo-us"`
+  - `ProxyOptions{Custom:{Host,Auth}}` -> `"custom-{host}:{auth}"`
 
-Available presets: `HD`, `FHD`, `QHD`, `UHD`, `Laptop`, `MobilePortrait`, `MobileLandscape`, `TabletPortrait`, `TabletLandscape`, `Thumbnail640`, `Thumbnail1200`, `Custom(w, h)`.
+## Repository Layout
 
-### Full Stealth Scrape Pattern
-
-Combining all extensions gives you the strongest bot-evasion setup:
-
-```go
-import (
-  phantomjscloud "github.com/amafjarkasi/go-phantomjs"
-  "github.com/amafjarkasi/go-phantomjs/ext/blocklist"
-  "github.com/amafjarkasi/go-phantomjs/ext/useragents"
-  "github.com/amafjarkasi/go-phantomjs/ext/viewport"
-)
-
-profile := useragents.ChromeWindowsProfile()
-
-script := phantomjscloud.NewOverseerScriptBuilder().
-  UseProfile(profile).                          // Realistic UA + spoofed headers
-  ApplyStealth().                               // 14 fingerprint evasions
-  ApplyViewport(viewport.FHD.Viewport).         // 1920×1080 desktop emulation
-  Goto("https://example.com").
-  WaitForDelay(1500).
-  Build()
-
-// PageRequestBuilder composes the full request without struct literals
-req := phantomjscloud.NewPageRequestBuilder("https://about:blank").
-  WithRenderType("jpeg").
-  WithProfile(profile).
-  WithBlocklist(blocklist.Lightweight()).
-  WithOverseerScript(script).
-  Build()
-```
-
-### Advanced Automation Workflows
-
-#### Auto-Login & Navigation
-
-`ClickAndWaitForNavigation()` atomically pairs the click with the page-load wait — eliminating the race condition where a fast server redirects before a subsequent `WaitForNavigation()` call can register.
-
-```go
- script := phantomjscloud.NewOverseerScriptBuilder().
-  WaitForSelector("input#username").
-  ClearInput("input#username").
-  Type("input#username", "USER@EXAMPLE.COM", 50).
-  ClearInput("input#password").
-  Type("input#password", "PASSWORD", 50).
-  ClickAndWaitForNavigation("button[type=submit]"). // Atomic: click + wait, no race condition
-  Build()
-
- req := &phantomjscloud.PageRequest{
-  URL:            "https://www.linkedin.com/uas/login",
-  RenderType:     "jpeg",
-  OverseerScript: script,
- }
-```
-
-#### Speeding up Long Requests (DOM Content Loaded)
-
-If a page has heavy ad trackers or infinite lazy loading, `PhantomJsCloud` might timeout waiting for the network idle state. You can override this to finish rendering as soon as the DOM is available or use `DoneWhen` in `RequestSettings`.
-
-```go
- // Method 1: Inject a manual wait and exit specifically on the domcontentloaded event
- script := phantomjscloud.NewOverseerScriptBuilder().
-  WaitForNavigationEvent("domcontentloaded").
-  Done().
-  Build()
-
- // Method 2: Configure it declaratively in RequestSettings natively
- reqSettings := phantomjscloud.RequestSettings{
-  DoneWhen: []phantomjscloud.DoneWhen{
-   {Event: "domReady"},
-  },
- }
-```
-
-### Advanced Features
-
-#### Emulate Print Media for PDF Generation
-
-Use the `EmulateMedia` parameter to generate a PDF exactly as it would look when printed.
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL:        "https://example.com/invoice.html",
-  RenderType: "pdf",
-  RenderSettings: phantomjscloud.RenderSettings{
-   EmulateMedia: "print", // Generate PDF using the @media:print CSS rules
-  },
- }
-```
-
-#### Intercept and Modify Requests (Change URL & Blacklist)
-
-You can use the `ResourceModifier` to change domains on the fly, or blacklist certain requests completely to save bandwidth (like CSS files).
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL:        "https://www.highcharts.com",
-  RenderType: "jpg",
-  RequestSettings: phantomjscloud.RequestSettings{
-   ClearCache: true, // Forces re-requesting css to be caught by the blacklist
-   ResourceModifier: []phantomjscloud.ResourceModifier{
-    {
-     Regex:     ".*highcharts.com.*",
-     ChangeUrl: "$$protocol:$$port//en.wikipedia.org/wiki$$path",
-    },
-    {
-     Regex:         ".*css.*",
-     IsBlacklisted: true,
-    },
-   },
-  },
- }
-```
-
-#### Render Thumbnails and Zooming
-
-Combine `Viewport`, `ClipRectangle`, and `ZoomFactor` to capture perfect thumbnails.
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL:        "https://cnn.com",
-  RenderType: "jpeg",
-  RenderSettings: phantomjscloud.RenderSettings{
-   ZoomFactor: 0.45,
-   Viewport:      &phantomjscloud.Viewport{Width: 640, Height: 500},
-   ClipRectangle: &phantomjscloud.ClipRectangle{Width: 640, Height: 500},
-  },
- }
-```
-
-#### Uploading POST Data and JSONP
-
-To submit POST data to a target URL natively, use `UrlSettings`:
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL: "https://example.com/api",
-  UrlSettings: &phantomjscloud.UrlSettings{
-   Operation: "POST",
-   Data:      `{"my_key":"my_value"}`,
-  },
- }
-```
-
-#### HTTP Basic Auth & Reduced JSON Verbosity
-
-Using `OutputAsJson: true` will return a massive payload. You can suppress fields using `SuppressJson`. Also, bypass HTTP Basic Auth natively using `Authentication`.
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL:          "http://httpbin.org/basic-auth/user/pass",
-  OutputAsJson: true,
-  SuppressJson: []string{"pageResponses", "originalRequest"},
-  RequestSettings: phantomjscloud.RequestSettings{
-   Authentication: &phantomjscloud.Authentication{
-    UserName: "user",
-    Password: "pass",
-   },
-  },
- }
-```
-
-#### Full JSON Metadata Response and Cookies
-
-To extract cookies, headers, and extensive metadata, use `OutputAsJson: true` and specify `Cookies` in the request settings.
-
-```go
- req := &phantomjscloud.PageRequest{
-  URL:          "http://example.com",
-  RenderType:   "plainText",
-  OutputAsJson: true,
-  RequestSettings: phantomjscloud.RequestSettings{
-   Cookies: []phantomjscloud.Cookie{
-    {Domain: "example.com", Name: "myCookie1", Value: "value1"},
-   },
-  },
- }
-```
-
-#### Render Raw HTML Strings
-
-`RenderRawHTML()` lets you upload a raw HTML string and render it through PhantomJsCloud as if it were a real page — useful for templated PDF invoices, emails, or dynamically generated reports without needing a web server.
-
-```go
- html := `<html><body><h1>Invoice #1234</h1><p>Total: $99.00</p></body></html>`
-
- pdfBytes, err := client.RenderRawHTML(html, "pdf", nil)
- if err != nil {
-  log.Fatal(err)
- }
- os.WriteFile("invoice.pdf", pdfBytes, 0o644)
-```
-
-## Repository Structure
-
-```
+```text
 go-phantomjs/
-├── automation.go        # OverseerScriptBuilder — ApplyStealth, UseProfile, ApplyViewport, ClickAndWaitForNavigation
-├── builder.go           # PageRequestBuilder — fluent PageRequest composition from ext/ presets
-├── client.go            # API client, Do/DoPage, FetchWithAutomation, response metadata
-├── types.go             # PhantomJsCloud JSON type mappings
-├── client_test.go       # Unit tests
-│
-├── ext/                 # Optional sub-packages (import only what you need)
-│   ├── stealth/         # Browser fingerprint evasions (from puppeteer-extra-plugin-stealth)
-│   │   ├── stealth.go
-│   │   └── evasions.js  # GENERATED — run: node scripts/gen_stealth.js
-│   ├── blocklist/       # Pre-built ResourceModifier URL blacklists
-│   │   ├── blocklist.go
-│   │   └── blocklist_test.go
-│   ├── blockpolicy/     # Adaptive block policy levels and block/challenge detection
-│   │   ├── blockpolicy.go
-│   │   └── blockpolicy_test.go
-│   ├── proxy/           # Proxy providers + host-aware proxy router
-│   │   ├── proxy.go
-│   │   ├── router.go
-│   │   └── router_test.go
-│   ├── persona/         # Host-routed request personas (proxy/profile/viewport/blockers)
-│   │   ├── engine.go
-│   │   └── engine_test.go
-│   ├── session/         # Cookie persistence store with host/scheme/expiry filtering
-│   │   ├── store.go
-│   │   └── store_test.go
-│   ├── scraper/         # Higher-level retry/orchestration helpers
-│   │   ├── scraper.go
-│   │   ├── adaptive.go
-│   │   ├── challenge.go
-│   │   ├── scraper_test.go
-│   │   ├── adaptive_test.go
-│   │   └── challenge_test.go
-│   ├── useragents/      # Realistic browser UA strings and Profile bundles
-│   │   ├── useragents.go
-│   │   └── useragents_test.go
-│   └── viewport/        # Named Viewport/ClipRectangle/ZoomFactor presets
-│       ├── viewport.go
-│       └── viewport_test.go
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml       # go vet + go test -race + go build on every push/PR
-│
-├── scripts/
-│   └── gen_stealth.js   # Node.js bundler: pulls from puppeteer-extra-plugin-stealth
-│
-├── example/
-│   └── main.go          # Stealth scrape, auto-login, OG thumbnail examples
-│
-├── .golangci.yml        # golangci-lint config (errcheck, staticcheck, govet, misspell)
-├── CHANGELOG.md         # Keep a Changelog — full history from v0.1.0
-└── package.json         # npm deps for code-gen only (private, not published)
+├── automation.go
+├── builder.go
+├── client.go
+├── types.go
+├── proxy_compat.go
+├── cmd/
+│   ├── abtest/
+│   └── pjsc/
+├── ext/
+│   ├── blocklist/
+│   ├── blockpolicy/
+│   ├── persona/
+│   ├── proxy/
+│   ├── scraper/
+│   ├── session/
+│   ├── stealth/
+│   ├── useragents/
+│   └── viewport/
+└── example/
 ```
-
-**Adding extensions**: drop a new directory under `ext/` with its own Go `package`, import it where needed, and optionally wire a method into `OverseerScriptBuilder`.
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
-Before submitting, make sure all of these pass locally:
+Before opening a PR, run:
 
 ```bash
 go vet ./...
@@ -795,8 +388,7 @@ go test -race -count=1 ./...
 go build ./...
 ```
 
-CI runs `go vet`, `go test -race`, `go build`, and `golangci-lint` automatically on every push and PR.
-
 ## License
 
-[MIT](https://choosealicense.com/licenses/mit/)
+[MIT](LICENSE)
+

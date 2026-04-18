@@ -12,6 +12,9 @@ import (
 // AdaptiveAttempt stores one attempt in an adaptive block-policy run.
 type AdaptiveAttempt struct {
 	Level    blockpolicy.Level
+	Proxy    interface{}
+	Blocked  bool
+	Health   []proxy.ProxyHealth
 	Response *phantomjscloud.UserResponseWithMeta
 	Err      error
 }
@@ -37,13 +40,16 @@ func DoPageWithAdaptiveBlockPolicy(
 		blockpolicy.Apply(&req, level)
 
 		resp, err := client.DoPageContext(ctx, &req)
+		blocked := err == nil && blockpolicy.LooksBlocked(resp)
 		attempts = append(attempts, AdaptiveAttempt{
 			Level:    level,
+			Proxy:    req.Proxy,
+			Blocked:  blocked,
 			Response: resp,
 			Err:      err,
 		})
 
-		if err == nil && !blockpolicy.LooksBlocked(resp) {
+		if err == nil && !blocked {
 			return resp, attempts, nil
 		}
 
@@ -87,16 +93,41 @@ func DoPageWithRoutingAndAdaptivePolicy(
 	for i := 0; i < maxAttempts; i++ {
 		req := *baseReq
 		blockpolicy.Apply(&req, level)
-		req.Proxy = router.GetProxyForURLAttempt(req.URL, i)
+		var selectedProxy interface{}
+		if _, ok := router.(proxy.URLProxyHealthReporter); ok {
+			selectedProxy = router.GetProxyForURL(req.URL)
+		} else {
+			selectedProxy = router.GetProxyForURLAttempt(req.URL, i)
+		}
+		req.Proxy = selectedProxy
+		var healthSnapshot []proxy.ProxyHealth
+		if hp, ok := router.(proxy.URLProxyHealthSnapshotProvider); ok {
+			healthSnapshot = hp.HealthForURL(req.URL)
+		}
 
 		resp, err := client.DoPageContext(ctx, &req)
+		blocked := err == nil && blockpolicy.LooksBlocked(resp)
+		if reporter, ok := router.(proxy.URLProxyHealthReporter); ok && selectedProxy != nil {
+			if err != nil {
+				// Transport/API failures are stronger negative signals than challenge pages.
+				reporter.ReportFailure(req.URL, selectedProxy)
+				reporter.ReportFailure(req.URL, selectedProxy)
+			} else if blocked {
+				reporter.ReportFailure(req.URL, selectedProxy)
+			} else {
+				reporter.ReportSuccess(req.URL, selectedProxy)
+			}
+		}
 		attempts = append(attempts, AdaptiveAttempt{
 			Level:    level,
+			Proxy:    req.Proxy,
+			Blocked:  blocked,
+			Health:   healthSnapshot,
 			Response: resp,
 			Err:      err,
 		})
 
-		if err == nil && !blockpolicy.LooksBlocked(resp) {
+		if err == nil && !blocked {
 			return resp, attempts, nil
 		}
 
