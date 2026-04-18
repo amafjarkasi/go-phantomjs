@@ -1,22 +1,22 @@
 {
-  "generatedAt": "2026-04-18T09:36:34Z",
+  "generatedAt": "2026-04-18T09:40:54Z",
   "rows": [
     {
       "name": "amazon-home",
       "url": "https://www.amazon.com",
       "before": {
-        "statusCode": 200,
+        "statusCode": 424,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 3089,
-        "cost": 0.000141648
+        "durationMs": 3174,
+        "cost": 0.000149363
       },
       "after": {
         "statusCode": 424,
         "blocked": false,
         "attempts": 1,
-        "durationMs": 7764,
-        "cost": 0.00425307
+        "durationMs": 7906,
+        "cost": 0.004783885
       },
       "debug": [
         "attempt=1 proxy={us } blocked=false err=false health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]"
@@ -29,15 +29,15 @@
         "statusCode": 503,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 1746,
-        "cost": 0.000075928
+        "durationMs": 1591,
+        "cost": 0.000072481
       },
       "after": {
         "statusCode": 424,
         "blocked": false,
         "attempts": 2,
-        "durationMs": 6675,
-        "cost": 0.006633721
+        "durationMs": 6368,
+        "cost": 0.0063609
       },
       "debug": [
         "attempt=1 proxy={ca } blocked=false err=true health=map[{ca }:0 {us }:0] delta=map[{ca }:0 {us }:0]",
@@ -51,15 +51,15 @@
         "statusCode": 200,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 19350,
-        "cost": 0.001574717
+        "durationMs": 19487,
+        "cost": 0.001582637
       },
       "after": {
         "statusCode": 200,
         "blocked": true,
         "attempts": 3,
-        "durationMs": 44743,
-        "cost": 0.013760626,
+        "durationMs": 44774,
+        "cost": 0.01375154,
         "error": "request remained blocked after challenge orchestration retries"
       },
       "debug": [
@@ -75,15 +75,15 @@
         "statusCode": 200,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 11049,
-        "cost": 0.000533594
+        "durationMs": 8651,
+        "cost": 0.000433705
       },
       "after": {
         "statusCode": 200,
         "blocked": true,
         "attempts": 3,
-        "durationMs": 24061,
-        "cost": 0.002801348,
+        "durationMs": 22618,
+        "cost": 0.002741943,
         "error": "request remained blocked after challenge orchestration retries"
       },
       "debug": [
@@ -99,15 +99,15 @@
         "statusCode": 200,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 19605,
-        "cost": 0.00201105
+        "durationMs": 6815,
+        "cost": 0.001410063
       },
       "after": {
         "statusCode": 200,
         "blocked": true,
         "attempts": 3,
-        "durationMs": 18952,
-        "cost": 0.011302894,
+        "durationMs": 18994,
+        "cost": 0.010508034,
         "error": "request remained blocked after challenge orchestration retries"
       },
       "debug": [
@@ -123,15 +123,15 @@
         "statusCode": 200,
         "blocked": true,
         "attempts": 1,
-        "durationMs": 17087,
-        "cost": 0.002602124
+        "durationMs": 11487,
+        "cost": 0.002342724
       },
       "after": {
         "statusCode": 200,
         "blocked": true,
         "attempts": 3,
-        "durationMs": 20763,
-        "cost": 0.011410395,
+        "durationMs": 22215,
+        "cost": 0.011487428000000001,
         "error": "request remained blocked after challenge orchestration retries"
       },
       "debug": [
