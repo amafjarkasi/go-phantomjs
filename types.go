@@ -1,6 +1,9 @@
 package phantomjscloud
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // UserRequest represents the root POST payload (IUserRequest).
 // PhantomJsCloud accepts either a raw PageRequest, or a UserRequest containing multiple pages.
@@ -108,7 +111,7 @@ type Cookie struct {
 	Secure   bool   `json:"secure,omitempty"`
 	HttpOnly bool   `json:"httpOnly,omitempty"`
 	SameSite string `json:"sameSite,omitempty"`
-	Expires  int    `json:"expires,omitempty"`
+	Expires  float64 `json:"expires,omitempty"`
 }
 
 type DoneWhen struct {
@@ -195,12 +198,22 @@ type Margin struct {
 // UserResponse represents the root response object
 type UserResponse struct {
 	PageResponses   []PageResponse         `json:"pageResponses"`
+	Content         PageContent            `json:"content,omitempty"`
 	Billing         Billing                `json:"billing"`
 	Status          string                 `json:"status"`
 	StatusMessage   string                 `json:"statusMessage,omitempty"`
 	QueryJson       interface{}            `json:"queryJson,omitempty"`
 	OriginalRequest interface{}            `json:"originalRequest,omitempty"`
 	Meta            map[string]interface{} `json:"meta,omitempty"`
+}
+
+type PageContent struct {
+	StatusCode int    `json:"statusCode,omitempty"`
+	Data       interface{} `json:"data,omitempty"`
+	Encoding   string `json:"encoding,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Size       int    `json:"size,omitempty"`
+	URL        string `json:"url,omitempty"`
 }
 
 type Billing struct {
@@ -212,7 +225,7 @@ type Billing struct {
 type PageResponse struct {
 	Content          string                 `json:"content"`
 	Metrics          Metrics                `json:"metrics"`
-	Events           map[string][]Event     `json:"events"`
+	Events           []PageEvent            `json:"events"`
 	StatusCode       int                    `json:"statusCode"`
 	StatusText       string                 `json:"statusText"`
 	Headers          map[string]string      `json:"headers"`
@@ -226,6 +239,120 @@ type PageResponse struct {
 	ScriptOutput     map[string]interface{} `json:"scriptOutput,omitempty"`
 	EventPhase       string                 `json:"eventPhase,omitempty"`
 	Resources        []interface{}          `json:"resources,omitempty"`
+}
+
+// PageEvent represents a single timeline/event entry in an outputAsJson response.
+type PageEvent struct {
+	TimeMs    int         `json:"timeMs"`
+	ElapsedMs int         `json:"elapsedMs"`
+	Key       string      `json:"key"`
+	Value     interface{} `json:"value"`
+	Time      string      `json:"time"`
+}
+
+func (p *PageResponse) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Content          json.RawMessage       `json:"content"`
+		Metrics          Metrics               `json:"metrics"`
+		Events           json.RawMessage       `json:"events"`
+		StatusCode       int                   `json:"statusCode"`
+		StatusText       string                `json:"statusText"`
+		Headers          map[string]string     `json:"headers"`
+		Meta             map[string]interface{} `json:"meta"`
+		DoneWhen         []DoneWhen            `json:"doneWhen,omitempty"`
+		FrameData        *FrameData            `json:"frameData,omitempty"`
+		Cookies          []Cookie              `json:"cookies,omitempty"`
+		Errors           []string              `json:"errors,omitempty"`
+		ContentErrors    json.RawMessage       `json:"contentErrors,omitempty"`
+		AutomationResult interface{}           `json:"automationResult,omitempty"`
+		ScriptOutput     map[string]interface{} `json:"scriptOutput,omitempty"`
+		EventPhase       string                `json:"eventPhase,omitempty"`
+		Resources        []interface{}         `json:"resources,omitempty"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	contentErrors, err := parseContentErrors(raw.ContentErrors)
+	if err != nil {
+		return err
+	}
+
+	*p = PageResponse{
+		Metrics:          raw.Metrics,
+		StatusCode:       raw.StatusCode,
+		StatusText:       raw.StatusText,
+		Headers:          raw.Headers,
+		Meta:             raw.Meta,
+		DoneWhen:         raw.DoneWhen,
+		FrameData:        raw.FrameData,
+		Cookies:          raw.Cookies,
+		Errors:           raw.Errors,
+		ContentErrors:    contentErrors,
+		AutomationResult: raw.AutomationResult,
+		ScriptOutput:     raw.ScriptOutput,
+		EventPhase:       raw.EventPhase,
+		Resources:        raw.Resources,
+	}
+
+	if len(raw.Content) > 0 && string(raw.Content) != "null" {
+		if raw.Content[0] == '"' {
+			if err := json.Unmarshal(raw.Content, &p.Content); err != nil {
+				return err
+			}
+		} else {
+			var content struct {
+				Data string `json:"data"`
+			}
+			if err := json.Unmarshal(raw.Content, &content); err == nil {
+				p.Content = content.Data
+			}
+		}
+	}
+
+	if len(raw.Events) > 0 && string(raw.Events) != "null" {
+		if err := json.Unmarshal(raw.Events, &p.Events); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func parseContentErrors(raw json.RawMessage) ([]string, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+
+	var asStrings []string
+	if err := json.Unmarshal(raw, &asStrings); err == nil {
+		return asStrings, nil
+	}
+
+	var asItems []interface{}
+	if err := json.Unmarshal(raw, &asItems); err != nil {
+		return nil, err
+	}
+
+	out := make([]string, 0, len(asItems))
+	for _, item := range asItems {
+		switch v := item.(type) {
+		case string:
+			out = append(out, v)
+		case map[string]interface{}:
+			if msg, ok := v["message"].(string); ok && msg != "" {
+				out = append(out, msg)
+				continue
+			}
+			b, _ := json.Marshal(v)
+			out = append(out, string(b))
+		default:
+			b, _ := json.Marshal(v)
+			out = append(out, string(b))
+		}
+	}
+	return out, nil
 }
 
 // IsSuccess returns true if the HTTP status code is in the 2xx range.

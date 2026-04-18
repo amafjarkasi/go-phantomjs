@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">go-phantomjs logo</title>
+  <desc id="desc">A ghost icon and the text go-phantomjs</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1B2B"/>
+      <stop offset="100%" stop-color="#163A59"/>
+    </linearGradient>
+    <linearGradient id="ghost" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F7FBFF"/>
+      <stop offset="100%" stop-color="#DCEBFA"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4CC2FF"/>
+      <stop offset="100%" stop-color="#6DE0C8"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="960" height="240" rx="24" fill="url(#bg)"/>
+
+  <g transform="translate(56 40)">
+    <path d="M72 0c-39.8 0-72 32.2-72 72v84l18-14 18 14 18-14 18 14 18-14 18 14V72C144 32.2 111.8 0 72 0z" fill="url(#ghost)"/>
+    <circle cx="50" cy="72" r="9" fill="#163A59"/>
+    <circle cx="94" cy="72" r="9" fill="#163A59"/>
+    <path d="M47 102c8 11 17 16 25 16s17-5 25-16" fill="none" stroke="#163A59" stroke-width="8" stroke-linecap="round"/>
+    <path d="M8 168h128" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+  </g>
+
+  <g fill="#EAF4FF" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <text x="248" y="110" font-size="64" font-weight="700" letter-spacing="0.5">go-phantomjs</text>
+    <text x="248" y="154" font-size="24" font-weight="500" fill="#9BC1E8">Go client for PhantomJsCloud automation</text>
+  </g>
+</svg>

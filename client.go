@@ -3,19 +3,15 @@ package phantomjscloud
 import (
 	"bytes"
 	"context"
-	"net"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/amafjarkasi/go-phantomjs/ext/proxy"
 )
 
 const (
@@ -93,7 +89,6 @@ func NewClient(apiKey string, opts ...ClientOption) *Client {
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: defaultHTTPTimeout},
 		endpoint:   baseEndpointUrl,
-		logger:     slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -212,8 +207,40 @@ func (c *Client) doSingle(ctx context.Context, req *UserRequest) (*UserResponseW
 		return nil, &httpError{StatusCode: httpResp.StatusCode, Err: err}
 	}
 
+	bodyBytes, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	contentType := strings.ToLower(httpResp.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "text/plain") {
+		return &UserResponseWithMeta{
+			UserResponse: UserResponse{
+				PageResponses: []PageResponse{{
+					Content:    string(bodyBytes),
+					StatusCode: httpResp.StatusCode,
+					StatusText: http.StatusText(httpResp.StatusCode),
+				}},
+			},
+			Metadata: parseMetadata(httpResp.Header),
+		}, nil
+	}
+
+	if strings.HasPrefix(contentType, "image/") || strings.Contains(contentType, "application/pdf") || strings.Contains(contentType, "application/octet-stream") {
+		return &UserResponseWithMeta{
+			UserResponse: UserResponse{
+				PageResponses: []PageResponse{{
+					Content:    base64.StdEncoding.EncodeToString(bodyBytes),
+					StatusCode: httpResp.StatusCode,
+					StatusText: http.StatusText(httpResp.StatusCode),
+				}},
+			},
+			Metadata: parseMetadata(httpResp.Header),
+		}, nil
+	}
+
 	var userResp UserResponse
-	if err := json.NewDecoder(httpResp.Body).Decode(&userResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &userResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response payload: %w", err)
 	}
 

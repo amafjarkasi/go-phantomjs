@@ -1,11 +1,20 @@
 # go-phantomjs
 
+[![go-phantomjs logo](assets/logo.svg)](https://github.com/amafjarkasi/go-phantomjs)
+
 [![Go Reference](https://pkg.go.dev/badge/github.com/amafjarkasi/go-phantomjs.svg)](https://pkg.go.dev/github.com/amafjarkasi/go-phantomjs)
 [![CI](https://github.com/amafjarkasi/go-phantomjs/actions/workflows/ci.yml/badge.svg)](https://github.com/amafjarkasi/go-phantomjs/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue)](https://go.dev/dl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 `go-phantomjs` is a production-ready Go client library for the [PhantomJsCloud](https://phantomjscloud.com/) API. Beyond a thin API wrapper, it ships a full browser-automation scripting layer and a modular extension ecosystem (`ext/`) that composes fingerprint evasions, realistic browser profiles, URL blocklists, and viewport presets into a single fluent API — letting you build sophisticated headless-browser scrapers entirely in Go.
+
+## Recent API Compatibility Updates
+
+- `Cookie.Expires` now uses `float64` to match real PhantomJsCloud payloads where `expires` can be non-integer.
+- `PageResponse.contentErrors` decoding now tolerates both string arrays and object arrays.
+- Added regression tests for both response shapes in [`client_test.go`](client_test.go).
+- Validated live behavior against major retailer targets (including paginated/search URLs) without JSON unmarshal failures.
 
 ## Features
 

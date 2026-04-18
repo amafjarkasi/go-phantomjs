@@ -423,3 +423,54 @@ func TestDoContext_EmptyKey(t *testing.T) {
 		t.Errorf("expected 'API key is required', got '%v'", err)
 	}
 }
+
+func TestUserResponseUnmarshal_ContentErrorsObject(t *testing.T) {
+	payload := `{
+		"status":"success",
+		"pageResponses":[
+			{
+				"statusCode":200,
+				"contentErrors":[{"message":"blocked by bot check"}]
+			}
+		],
+		"billing":{"creditCost":0,"quotaUsage":0}
+	}`
+
+	var res UserResponse
+	if err := json.Unmarshal([]byte(payload), &res); err != nil {
+		t.Fatalf("unexpected unmarshal error: %v", err)
+	}
+	if len(res.PageResponses) != 1 {
+		t.Fatalf("expected 1 pageResponse, got %d", len(res.PageResponses))
+	}
+	if len(res.PageResponses[0].ContentErrors) != 1 {
+		t.Fatalf("expected 1 content error, got %#v", res.PageResponses[0].ContentErrors)
+	}
+	if got := res.PageResponses[0].ContentErrors[0]; got != "blocked by bot check" {
+		t.Fatalf("unexpected content error value: %q", got)
+	}
+}
+
+func TestUserResponseUnmarshal_CookieExpiresFloat(t *testing.T) {
+	payload := `{
+		"status":"success",
+		"pageResponses":[
+			{
+				"statusCode":200,
+				"cookies":[{"name":"sid","value":"x","expires":1808034204.576918}]
+			}
+		],
+		"billing":{"creditCost":0,"quotaUsage":0}
+	}`
+
+	var res UserResponse
+	if err := json.Unmarshal([]byte(payload), &res); err != nil {
+		t.Fatalf("unexpected unmarshal error: %v", err)
+	}
+	if len(res.PageResponses) != 1 || len(res.PageResponses[0].Cookies) != 1 {
+		t.Fatalf("unexpected cookies payload: %#v", res.PageResponses)
+	}
+	if got := res.PageResponses[0].Cookies[0].Expires; got != 1808034204.576918 {
+		t.Fatalf("unexpected expires value: %v", got)
+	}
+}
